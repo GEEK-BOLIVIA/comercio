@@ -155,8 +155,8 @@
                     <details class="group px-1">
                         <summary
                             class="flex items-center justify-between rounded-lg px-3 py-2.5 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-all cursor-pointer list-none">
-                            <div onclick="event.preventDefault(); ownerController.inicializar()"
-                                class="flex items-center gap-3 flex-1">
+                            <div id="link-owners" data-view="views/usuarios_tabla.html"
+                                class="nav-item flex items-center gap-3 flex-1 cursor-pointer">
                                 <span class="material-symbols-outlined text-[20px]">shield_person</span>
                                 <p class="text-sm font-medium sidebar-hide">Owners</p>
                             </div>
@@ -175,8 +175,7 @@
                     <details class="group px-1">
                         <summary
                             class="flex items-center justify-between rounded-lg px-3 py-2.5 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-all cursor-pointer list-none">
-                            <div onclick="event.preventDefault(); adminController.inicializar()"
-                                class="flex items-center gap-3 flex-1">
+                            <div id="link-admins" class="nav-item flex items-center gap-3 flex-1 cursor-pointer">
                                 <span class="material-symbols-outlined text-[20px]">manage_accounts</span>
                                 <p class="text-sm font-medium sidebar-hide">Administradores</p>
                             </div>
@@ -191,57 +190,10 @@
                             </button>
                         </div>
                     </details>
-                </div>
-                <div class="flex flex-col gap-1">
-                    <p class="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 sidebar-hide">
-                        Gestión Humana
-                    </p>
-
                     <details class="group px-1">
                         <summary
                             class="flex items-center justify-between rounded-lg px-3 py-2.5 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-all cursor-pointer list-none">
-                            <div onclick="event.preventDefault(); ownerController.inicializar()"
-                                class="flex items-center gap-3 flex-1">
-                                <span class="material-symbols-outlined text-[20px]">shield_person</span>
-                                <p class="text-sm font-medium sidebar-hide">Owners</p>
-                            </div>
-                            <span
-                                class="material-symbols-outlined text-[18px] transition-transform group-open:rotate-180 sidebar-hide">expand_more</span>
-                        </summary>
-                        <div class="flex flex-col gap-1 mt-1 ml-4 pl-4 border-l-2 border-slate-100 sidebar-hide">
-                            <button onclick="ownerController.mostrarFormularioCrear()"
-                                class="flex items-center gap-3 rounded-lg px-3 py-1.5 text-slate-400 hover:text-blue-500 transition-all text-[10px] font-bold uppercase">
-                                <span class="material-symbols-outlined text-[16px]">add_moderator</span>
-                                Nuevo Owner
-                            </button>
-                        </div>
-                    </details>
-
-                    <details class="group px-1">
-                        <summary
-                            class="flex items-center justify-between rounded-lg px-3 py-2.5 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-all cursor-pointer list-none">
-                            <div onclick="event.preventDefault(); adminController.inicializar()"
-                                class="flex items-center gap-3 flex-1">
-                                <span class="material-symbols-outlined text-[20px]">manage_accounts</span>
-                                <p class="text-sm font-medium sidebar-hide">Administradores</p>
-                            </div>
-                            <span
-                                class="material-symbols-outlined text-[18px] transition-transform group-open:rotate-180 sidebar-hide">expand_more</span>
-                        </summary>
-                        <div class="flex flex-col gap-1 mt-1 ml-4 pl-4 border-l-2 border-slate-100 sidebar-hide">
-                            <button onclick="adminController.mostrarFormularioCrear()"
-                                class="flex items-center gap-3 rounded-lg px-3 py-1.5 text-slate-400 hover:text-blue-500 transition-all text-[10px] font-bold uppercase">
-                                <span class="material-symbols-outlined text-[16px]">person_add</span>
-                                Nuevo Admin
-                            </button>
-                        </div>
-                    </details>
-
-                    <details class="group px-1">
-                        <summary
-                            class="flex items-center justify-between rounded-lg px-3 py-2.5 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-all cursor-pointer list-none">
-                            <div onclick="event.preventDefault(); clienteController.inicializar()"
-                                class="flex items-center gap-3 flex-1">
+                            <div id="link-clientes" class="nav-item flex items-center gap-3 flex-1 cursor-pointer">
                                 <span class="material-symbols-outlined text-[20px]">group</span>
                                 <p class="text-sm font-medium sidebar-hide">Clientes</p>
                             </div>

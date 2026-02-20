@@ -141,7 +141,23 @@ export const usuarioModel = {
             return null;
         }
     },
+    // Añadir esto a tu usuarioModel.js
+    async obtenerPorRol(rol) {
+        try {
+            const { data, error } = await supabase
+                .from('usuario')
+                .select('*')
+                .eq('visible', true)
+                .eq('rol', rol) // Filtramos por el rol específico
+                .order('apellido_paterno', { ascending: true });
 
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error(`Error al obtener ${rol}s:`, error.message);
+            return [];
+        }
+    },
     /**
      * Actualiza datos parciales del perfil del usuario
      */
@@ -184,5 +200,12 @@ export const usuarioModel = {
             console.error('Error en obtenerDestinosConfiguracion:', error.message);
             return { usuarios: [], roles: [] };
         }
+    },
+    async invitarNuevoUsuario(email, metadatos) {
+        // metadatos puede incluir el rol que le asignaste
+        return await supabase.auth.admin.inviteUserByEmail(email, {
+            data: metadatos,
+            redirectTo: metadatos.redirectTo
+        });
     }
 };

@@ -1,13 +1,9 @@
 import { categoriasController } from './controllers/categoriasController.js';
 import { productoController } from './controllers/productoController.js';
 import { importacionController } from './controllers/importacionController.js';
-// Agregamos la importación del modelo de usuario
 import { usuarioModel } from './models/usuarioModel.js';
+import { usuarioController } from './controllers/usuarioController.js';
 
-/**
- * Navigation Controller - Nexus Admin Suite
- * Integra carga de IFRAMEs, AJAX, MVC, UI de Sidebar y PROTECCIÓN DE RUTAS
- */
 document.addEventListener('DOMContentLoaded', async () => {
 
     // --- 0. PROTECCIÓN DE RUTAS Y SESIÓN ---
@@ -25,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!sesionActiva) return; // Detiene la ejecución si no está autorizado
 
     // --- 0.1 CARGAR DATOS DEL USUARIO EN LA UI ---
-   // --- CARGAR DATOS DEL USUARIO EN LA UI ---
+    // --- CARGAR DATOS DEL USUARIO EN LA UI ---
     const perfil = sesionActiva.perfil;
     const userNameDisplay = document.querySelector('.sidebar-hide p.text-slate-800.text-sm.font-bold');
     const userRoleDisplay = document.querySelector('.sidebar-hide p.text-slate-500.text-\\[11px\\]');
@@ -47,6 +43,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error("Error al cargar productos iniciales:", error);
     }
 
+    const mapeoRolesUsuarios = {
+        'link-owners': 'owner',
+        'link-admins': 'admin',
+        'link-clientes': 'cliente'
+    };
+    // Modificamos la función cargarSeccion o el listener de clics
+    async function ejecutarControladorSegunID(idElemento) {
+        const controlador = mapeoControladores[idElemento];
+        if (controlador) {
+            // Esperamos un momento a que el HTML se cargue en el DOM si usas AJAX
+            setTimeout(async () => {
+                await controlador.inicializar();
+            }, 100);
+        }
+    }
     // --- 0.3 LÓGICA DE LOGOUT ---
     const btnLogout = document.querySelector('button[title="Cerrar Sesión"]');
     if (btnLogout) {
@@ -77,9 +88,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const navItems = document.querySelectorAll('.nav-item');
     const contentArea = document.getElementById('content-area');
 
-    // --- INYECCIÓN DE ESTILOS GLOBALES (Modo Oscuro Automático) ---
-    // --- INYECCIÓN DE ESTILOS GLOBALES (Modo Oscuro y Alineación) ---
-    // --- INYECCIÓN DE ESTILOS GLOBALES (Corrección de Recorte de Avatar) ---
     const inyectarEstilosGlobales = () => {
         if (document.getElementById('nexus-dynamic-styles')) return;
         const style = document.createElement('style');
@@ -193,13 +201,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         actualizarEstadoActivo(item);
     });
 
-    // Eventos para nav-items estándar
+    // --- NAVEGACIÓN UNIFICADA ---
     navItems.forEach(item => {
         item.addEventListener('click', async (e) => {
+            // Evitamos que el clic en elementos internos del botón interfiera
             e.preventDefault();
+
+            const id = item.id;
             const viewUrl = item.getAttribute('data-view');
-            const loadType = item.getAttribute('data-type') || 'ajax';
-            await cargarSeccion(viewUrl, loadType, item);
+            const rolParaCargar = mapeoRolesUsuarios[id];
+
+            // Caso A: Es una sección de Usuarios (Owner, Admin, Cliente)
+            if (rolParaCargar) {
+                actualizarEstadoActivo(item);
+                // El controlador ya sabe que debe limpiar el contentArea y dibujar la tabla
+                await usuarioController.inicializarSeccion(rolParaCargar);
+            }
+            // Caso B: Son secciones de Inventario (Productos, Categorías)
+            else if (id === 'link-productos' || id === 'link-categorias') {
+                actualizarEstadoActivo(item);
+                if (id === 'link-productos') await productoController.inicializar();
+                if (id === 'link-categorias') await categoriasController.inicializar();
+            }
+            // Caso C: Es una página estática o con AJAX simple
+            else if (viewUrl) {
+                await cargarSeccion(viewUrl, 'ajax', item);
+            }
         });
     });
 
@@ -221,6 +248,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             title: titulo,
             html: 'Por favor espere un momento...',
             allowOutsideClick: false,
+            focusConfirm: false,
             didOpen: () => Swal.showLoading(),
             showConfirmButton: false,
             backdrop: `rgba(15, 23, 42, 0.1)`
@@ -232,35 +260,46 @@ document.addEventListener('DOMContentLoaded', async () => {
         contentArea.innerHTML = `<div class="flex items-center justify-center h-full text-slate-400">Error al cargar ${url}</div>`;
     }
 
+    /**
+  * Gestiona el resaltado visual de la opción seleccionada en el sidebar
+  */
     function actualizarEstadoActivo(elementoActivo) {
         if (!elementoActivo) return;
 
-        const todosLosLinks = document.querySelectorAll('.nav-item, [id^="link-"], details button, summary');
-        todosLosLinks.forEach(i => {
-            i.classList.remove(
+        // 1. Limpiamos todos los estilos de "activo" de todos los nav-items
+        const todosLosLinks = document.querySelectorAll('.nav-item');
+        todosLosLinks.forEach(link => {
+            // Quitamos fondos y colores de texto activos (blue, indigo, emerald, etc.)
+            link.classList.remove(
                 'bg-blue-50', 'text-blue-600',
                 'bg-indigo-50', 'text-indigo-600',
-                'bg-orange-50', 'text-orange-600',
                 'bg-emerald-50', 'text-emerald-600',
                 'bg-slate-100'
             );
-            i.classList.add('text-slate-500');
-            const p = i.querySelector('p');
-            if (p) p.classList.remove('text-blue-600');
+            // Volvemos al color base (gris)
+            link.classList.add('text-slate-500');
+
+            // Si tienes iconos o texto <p> internos, también los reseteamos
+            const texto = link.querySelector('p');
+            if (texto) texto.classList.remove('text-blue-600', 'font-bold');
         });
 
-        elementoActivo.classList.remove('text-slate-500', 'text-slate-400');
-        const id = elementoActivo.id || '';
-        const texto = elementoActivo.innerText.toLowerCase();
+        // 2. Aplicamos el estilo activo solo al elemento clickeado
+        elementoActivo.classList.remove('text-slate-500');
 
-        if (id === 'link-config-cliente') {
+        // Personalización por ID (Opcional: puedes hacer que cada uno tenga su color)
+        if (elementoActivo.id === 'link-admins') {
             elementoActivo.classList.add('bg-indigo-50', 'text-indigo-600');
-        } else if (texto.includes('carga masiva')) {
-            elementoActivo.classList.add('bg-orange-50', 'text-orange-600');
-        } else if (texto.includes('nueva subcategoría')) {
+        } else if (elementoActivo.id === 'link-clientes') {
             elementoActivo.classList.add('bg-emerald-50', 'text-emerald-600');
         } else {
+            // Por defecto para Owners, Productos y Categorías usamos Azul
             elementoActivo.classList.add('bg-blue-50', 'text-blue-600');
         }
+
+        // Opcional: poner el texto en negrita
+        const textoActivo = elementoActivo.querySelector('p');
+        if (textoActivo) textoActivo.classList.add('font-bold');
     }
 });
+window.usuarioController = usuarioController;
