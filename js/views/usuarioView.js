@@ -268,6 +268,87 @@ export const usuarioView = {
         }).then((result) => {
             if (result.isConfirmed) usuarioController.eliminarRegistro(id);
         });
+    },
+    /**
+     * FORMULARIO DINÁMICO PARA CREACIÓN (INVITACIÓN) O EDICIÓN
+     */
+    async mostrarFormularioUsuario({ titulo, datos, color, esEdicion }) {
+        const { value: formValues } = await Swal.fire({
+            title: `<span class="text-slate-800 font-black uppercase text-sm">${titulo}</span>`,
+            html: `
+                <div class="text-left space-y-4 p-2">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Nombres</label>
+                            <input id="swal-nombres" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-${color}-500/10 outline-none" 
+                                   placeholder="Ej. Juan Pablo" value="${datos.nombres || ''}">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Apellido Paterno</label>
+                            <input id="swal-paterno" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-${color}-500/10 outline-none" 
+                                   placeholder="Ej. Perez" value="${datos.apellido_paterno || ''}">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Apellido Materno</label>
+                            <input id="swal-materno" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-${color}-500/10 outline-none" 
+                                   placeholder="Ej. Mamani" value="${datos.apellido_materno || ''}">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase ml-2">C.I. / Documento</label>
+                            <input id="swal-ci" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-${color}-500/10 outline-none" 
+                                   placeholder="Ej. 8475632" value="${datos.ci || ''}">
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Correo Electrónico (Para invitación)</label>
+                        <input id="swal-email" type="email" 
+                               ${esEdicion ? 'disabled' : ''} 
+                               class="${esEdicion ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-50'} w-full border border-slate-200 rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-${color}-500/10 outline-none" 
+                               placeholder="correo@ejemplo.com" value="${datos.correo_electronico || ''}">
+                        ${esEdicion ? '<p class="text-[9px] text-amber-500 font-bold ml-2 italic">* El correo no se puede modificar por seguridad</p>' : ''}
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Celular / WhatsApp</label>
+                        <input id="swal-celular" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-${color}-500/10 outline-none" 
+                               placeholder="Ej. 70712345" value="${datos.celular || ''}">
+                    </div>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: esEdicion ? 'Guardar Cambios' : 'Enviar Invitación',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#000000',
+            customClass: {
+                popup: 'rounded-[32px] border-none shadow-2xl w-[90%] max-w-lg',
+                confirmButton: 'rounded-xl px-6 py-3 font-bold text-sm uppercase transition-all hover:scale-105',
+                cancelButton: 'rounded-xl px-6 py-3 font-bold text-sm bg-slate-100 text-slate-500'
+            },
+            preConfirm: () => {
+                const nombres = document.getElementById('swal-nombres').value.trim();
+                const email = document.getElementById('swal-email').value.trim();
+                
+                if (!nombres || !email) {
+                    Swal.showValidationMessage('Nombres y Correo son obligatorios');
+                    return false;
+                }
+                
+                return {
+                    nombres: nombres,
+                    apellido_paterno: document.getElementById('swal-paterno').value.trim(),
+                    apellido_materno: document.getElementById('swal-materno').value.trim(),
+                    ci: document.getElementById('swal-ci').value.trim(),
+                    correo_electronico: email,
+                    celular: document.getElementById('swal-celular').value.trim()
+                };
+            }
+        });
+
+        return formValues; // Retorna los datos al controller
     }
 };
 

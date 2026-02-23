@@ -8,15 +8,46 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- 0. PROTECCIÓN DE RUTAS Y SESIÓN ---
     const verificarAcceso = async () => {
+        // 1. Obtener la sesión del modelo
         const sesion = await usuarioModel.obtenerSesionActual();
 
-        if (!sesion || sesion.perfil.rol.toLowerCase() !== 'owner') {
-            window.location.href = '../index.html';
+        // Caso A: No hay nadie logueado (ni en Auth)
+        if (!sesion) {
+            console.log("No hay sesión activa. Al login.");
+            window.location.href = 'index.html';
             return null;
         }
+
+        // Caso B: Está logueado en Auth pero NO existe en la tabla 'usuario'
+        // (Usuario que entró por Google y cerró la pestaña sin llenar datos)
+        if (!sesion.perfil) {
+            console.warn("Sesión detectada pero perfil inexistente en DB.");
+            window.location.href = 'registrar-usuario.html';
+            return null;
+        }
+
+        // Caso C: Existe el perfil pero no es Owner
+        if (sesion.perfil.rol.toLowerCase() !== 'owner') {
+            console.error("Acceso denegado: El rol no es Owner.");
+            // Opcional: Cerrar sesión si no es el rol permitido
+            await usuarioModel.logout();
+            window.location.href = 'index.html';
+            return null;
+        }
+
+        // Caso D: El perfil existe pero le faltan campos críticos (CI, Celular, etc.)
+        const camposCriticos = ['ci', 'nombres', 'celular'];
+        const estaIncompleto = camposCriticos.some(campo => !sesion.perfil[campo]);
+
+        if (estaIncompleto) {
+            console.warn("Perfil incompleto detectado.");
+            window.location.href = 'registrar-usuario.html';
+            return null;
+        }
+
+        // Si llegó aquí, todo está perfecto
         return sesion;
     };
-
     const sesionActiva = await verificarAcceso();
     if (!sesionActiva) return; // Detiene la ejecución si no está autorizado
 

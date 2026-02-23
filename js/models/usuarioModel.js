@@ -68,36 +68,15 @@ export const usuarioModel = {
     /**
      * Registra un usuario en Auth e inserta su perfil en la tabla pública
      */
-    async crear(datos) {
+    async crear(payload) {
         try {
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-                email: datos.correo_electronico,
-                password: datos.password,
-            });
-
-            if (authError) throw authError;
-            if (!authData.user) throw new Error("No se pudo crear el usuario en Auth");
-
-            const payload = {
-                id: authData.user.id,
-                nombres: datos.nombres,
-                apellido_paterno: datos.apellido_paterno,
-                apellido_materno: datos.apellido_materno,
-                correo_electronico: datos.correo_electronico,
-                celular: datos.celular,
-                ci: datos.ci,
-                rol: datos.rol || 'cliente',
-                visible: true
-            };
-
-            const { data: perfil, error: perfilError } = await supabase
+            const { data, error } = await supabase
                 .from('usuario')
                 .insert([payload])
                 .select();
 
-            if (perfilError) throw perfilError;
-
-            return { exito: true, data: perfil[0] };
+            if (error) throw error;
+            return { exito: true, data: data[0] };
         } catch (err) {
             console.error('Error en usuarioModel.crear:', err.message);
             return { exito: false, mensaje: err.message };
@@ -202,10 +181,57 @@ export const usuarioModel = {
         }
     },
     async invitarNuevoUsuario(email, metadatos) {
-        // metadatos puede incluir el rol que le asignaste
-        return await supabase.auth.admin.inviteUserByEmail(email, {
-            data: metadatos,
-            redirectTo: metadatos.redirectTo
-        });
+        try {
+            const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
+                data: {
+                    rol: metadatos.rol,
+                    nombres: metadatos.nombres
+                },
+                redirectTo: metadatos.redirectTo
+            });
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error al invitar:', error.message);
+            return { data: null, error };
+        }
+    },
+
+    async limpiarRegistrosIncompletos() {
+        // 1. Obtener todos los usuarios de Auth
+        const { data: { users }, error } = await supabase.auth.admin.listUsers();
+
+        if (error) return { exito: false, mensaje: error.message };
+
+        for (const user of users) {
+            // 2. Verificar si existe en la tabla pública
+            const { data: perfil } = await supabase
+                .from('usuario')
+                .select('id')
+                .eq('id', user.id)
+                .single();
+
+            // 3. Si no existe y lleva más de un día, borrar
+            const unDiaEnMs = 24 * 60 * 60 * 1000;
+            const antiguedad = new Date() - new Date(user.created_at);
+
+            if (!perfil && antiguedad > unDiaEnMs) {
+                await supabase.auth.admin.deleteUser(user.id);
+                console.log(`Usuario huérfano eliminado: ${user.email}`);
+            }
+        }
+    },
+    async eliminarUsuarioTotal(userId) {
+        try {
+            // Al borrar de Auth, el CASCADE borra automáticamente la fila en 'public.usuario'
+            const { error } = await supabase.auth.admin.deleteUser(userId);
+
+            if (error) throw error;
+            return { exito: true };
+        } catch (error) {
+            console.error('Error al eliminar usuario:', error.message);
+            return { exito: false, mensaje: error.message };
+        }
     }
 };

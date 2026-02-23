@@ -116,7 +116,7 @@ export const usuarioController = {
      * Prepara y muestra el formulario de creación o edición
      */
     async mostrarFormulario(id = null) {
-        let datosIniciales = { nombres: '', apellido_paterno: '', correo_electronico: '', celular: '' };
+        let datosIniciales = { nombres: '', apellido_paterno: '', apellido_materno: '', correo_electronico: '', celular: '', ci: '' };
         let titulo = `Nuevo ${this._estado.configActual.rol}`;
 
         if (id) {
@@ -125,12 +125,11 @@ export const usuarioController = {
             if (usuario) datosIniciales = usuario;
         }
 
-        // Aquí llamarías a un método mostrarFormulario en la vista (similar al de categorías)
-        // Por ahora, implementamos la lógica de guardado:
         const resultadoForm = await usuarioView.mostrarFormularioUsuario({
             titulo: titulo,
             datos: datosIniciales,
-            color: this._estado.configActual.color
+            color: this._estado.configActual.color,
+            esEdicion: !!id // Pasamos si es edición para bloquear el email en el form
         });
 
         if (resultadoForm) {
@@ -138,41 +137,57 @@ export const usuarioController = {
         }
     },
 
-    /**
-     * Guarda los datos en la DB
-     */
     async guardarUsuario(id, datos) {
-        usuarioView.mostrarCargando('Guardando cambios...');
+        const mensajeCarga = id ? 'Guardando cambios...' : `Invitando al nuevo ${this._estado.rolActual.toUpperCase()}...`;
+        usuarioView.mostrarCargando(mensajeCarga);
 
         let resultado;
+
         if (id) {
+            // --- EDICIÓN ---
             resultado = await usuarioModel.actualizar(id, datos);
         } else {
-            datos.rol = this._estado.rolActual;
-            resultado = await usuarioModel.crear(datos);
+            // --- NUEVO (INVITACIÓN + PERFIL) ---
+            try {
+                const rolParaInvitar = this._estado.rolActual;
+
+                // 1. Invitar en Auth
+                const { data: authData, error: authError } = await usuarioModel.invitarNuevoUsuario(
+                    datos.correo_electronico,
+                    {
+                        rol: rolParaInvitar,
+                        nombres: datos.nombres,
+                        redirectTo: window.location.origin + '/index.html'
+                    }
+                );
+
+                if (authError) throw authError;
+
+                // 2. Crear registro en tabla pública
+                const nuevoPerfil = {
+                    id: authData.user.id,
+                    ci: datos.ci,
+                    nombres: datos.nombres,
+                    apellido_paterno: datos.apellido_paterno,
+                    apellido_materno: datos.apellido_materno,
+                    correo_electronico: datos.correo_electronico,
+                    celular: datos.celular,
+                    rol: rolParaInvitar,
+                    visible: true
+                };
+
+                resultado = await usuarioModel.crear(nuevoPerfil);
+
+            } catch (error) {
+                resultado = { exito: false, mensaje: "Error en invitación: " + error.message };
+            }
         }
 
         if (resultado.exito) {
-            usuarioView.notificarExito('Registro guardado con éxito.');
+            usuarioView.notificarExito(id ? 'Cambios guardados.' : 'Invitación enviada al correo.');
             this.refrescarVista();
         } else {
             usuarioView.notificarError(resultado.mensaje);
-        }
-    },
-    async enviarInvitacion(email, rol) {
-        usuarioView.mostrarCargando('Enviando invitación por correo...');
-
-        // Llamada al modelo para invitar
-        const { data, error } = await usuarioModel.invitarNuevoUsuario(email, {
-            rol: rol,
-            // Redirige al usuario a una página especial de bienvenida
-            redirectTo: window.location.origin + '/completar-registro.html'
-        });
-
-        if (!error) {
-            usuarioView.notificarExito('Invitación enviada a ' + email);
-        } else {
-            usuarioView.notificarError('Error: ' + error.message);
         }
     }
 };
