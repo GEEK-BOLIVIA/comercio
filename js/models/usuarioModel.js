@@ -8,30 +8,36 @@ export const usuarioModel = {
     /**
      * Inicia sesión en Supabase Auth y obtiene el perfil de la tabla pública
      */
-    async login(email, password) {
+    async loginConRedSocial(proveedor) {
         try {
-            const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-                email,
-                password
+            const { data, error } = await supabase.auth.signInWithOAuth({
+                provider: proveedor,
+                options: {
+                    // Esto redirige al usuario de vuelta a tu app tras loguearse
+                    redirectTo: window.location.origin
+                }
             });
 
-            if (authError) throw authError;
-
-            const { data: perfil, error: perfilError } = await supabase
-                .from('usuario')
-                .select('*')
-                .eq('id', authData.user.id)
-                .single();
-
-            if (perfilError) throw perfilError;
-
-            return { exito: true, user: authData.user, perfil };
+            if (error) throw error;
+            return { exito: true, data };
         } catch (err) {
-            console.error('Error en usuarioModel.login:', err.message);
+            console.error(`Error en login con ${proveedor}:`, err.message);
             return { exito: false, mensaje: err.message };
         }
     },
-
+    // Añade esto a tu usuarioModel.js
+    async login(email, password) {
+        try {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: email,
+                password: password,
+            });
+            if (error) throw error;
+            return { exito: true, data };
+        } catch (error) {
+            return { exito: false, mensaje: error.message };
+        }
+    },
     /**
      * Obtiene los datos del usuario actual si hay una sesión activa
      */
@@ -40,18 +46,46 @@ export const usuarioModel = {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return null;
 
-            const { data: perfil } = await supabase
+            // 1. Intentar obtener el perfil real de la tabla 'usuario'
+            const { data: perfil, error } = await supabase
                 .from('usuario')
                 .select('*')
-                .eq('id', user.id)
-                .single();
+                .eq('correo_electronico', user.email)
+                .maybeSingle(); // maybeSingle no lanza error si no encuentra nada
 
-            return { ...user, perfil };
+            if (perfil) {
+                // VÍNCULO AUTOMÁTICO: Si el ID cambió (primera vez tras invitación)
+                if (perfil.id !== user.id) {
+                    await supabase.from('usuario').update({ id: user.id }).eq('correo_electronico', user.email);
+                    perfil.id = user.id;
+                }
+                return { auth: user, perfil: perfil, tipo: 'existente' };
+            }
+
+            // 2. Si no hay perfil, verificar si está en la 'whitelist'
+            const { data: invitacion, error: errWhite } = await supabase
+                .from('whitelist')
+                .select('*')
+                .eq('correo_electronico', user.email)
+                .maybeSingle();
+
+            if (invitacion) {
+                // Retornamos un "perfil temporal" basado en la invitación para que el controller sepa qué hacer
+                return {
+                    auth: user,
+                    perfil: { correo_electronico: user.email, rol: invitacion.rol, temporal: true },
+                    tipo: 'invitado'
+                };
+            }
+
+            // 3. Si no está en ninguna parte, no tiene acceso
+            return { auth: user, perfil: null, tipo: 'denegado' };
+
         } catch (err) {
+            console.error("Error en obtenerSesionActual:", err);
             return null;
         }
     },
-
     /**
      * Cierra la sesión globalmente y limpia el storage local
      */
@@ -78,7 +112,7 @@ export const usuarioModel = {
             if (error) throw error;
             return { exito: true, data: data[0] };
         } catch (err) {
-            console.error('Error en usuarioModel.crear:', err.message);
+            console.error('Error al autorizar usuario:', err.message);
             return { exito: false, mensaje: err.message };
         }
     },
@@ -142,7 +176,7 @@ export const usuarioModel = {
      */
     async actualizar(id, cambios) {
         try {
-            const { data, error } = await supabase
+            const { error } = await supabase
                 .from('usuario')
                 .update(cambios)
                 .eq('id', id);
@@ -180,58 +214,66 @@ export const usuarioModel = {
             return { usuarios: [], roles: [] };
         }
     },
-    async invitarNuevoUsuario(email, metadatos) {
-        try {
-            const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
-                data: {
-                    rol: metadatos.rol,
-                    nombres: metadatos.nombres
-                },
-                redirectTo: metadatos.redirectTo
-            });
 
-            if (error) throw error;
-            return { data, error: null };
-        } catch (error) {
-            console.error('Error al invitar:', error.message);
-            return { data: null, error };
-        }
-    },
-
-    async limpiarRegistrosIncompletos() {
-        // 1. Obtener todos los usuarios de Auth
-        const { data: { users }, error } = await supabase.auth.admin.listUsers();
-
-        if (error) return { exito: false, mensaje: error.message };
-
-        for (const user of users) {
-            // 2. Verificar si existe en la tabla pública
-            const { data: perfil } = await supabase
-                .from('usuario')
-                .select('id')
-                .eq('id', user.id)
-                .single();
-
-            // 3. Si no existe y lleva más de un día, borrar
-            const unDiaEnMs = 24 * 60 * 60 * 1000;
-            const antiguedad = new Date() - new Date(user.created_at);
-
-            if (!perfil && antiguedad > unDiaEnMs) {
-                await supabase.auth.admin.deleteUser(user.id);
-                console.log(`Usuario huérfano eliminado: ${user.email}`);
-            }
-        }
-    },
     async eliminarUsuarioTotal(userId) {
         try {
-            // Al borrar de Auth, el CASCADE borra automáticamente la fila en 'public.usuario'
-            const { error } = await supabase.auth.admin.deleteUser(userId);
+            // Nota: Para usar admin.deleteUser necesitas una Edge Function o Service Role Key.
+            // Si el RLS está bien configurado, borrar de la tabla pública es suficiente 
+            // para que el Trigger de salida (opcional) o el RLS bloqueen al usuario.
+            const { error } = await supabase
+                .from('usuario')
+                .update({ visible: false }) // Recomendamos borrado lógico por seguridad
+                .eq('id', userId);
 
             if (error) throw error;
             return { exito: true };
         } catch (error) {
-            console.error('Error al eliminar usuario:', error.message);
             return { exito: false, mensaje: error.message };
         }
+    },
+    async autorizarEnWhitelist(datos) {
+        try {
+            const { data, error } = await supabase
+                .from('whitelist')
+                .insert([datos]);
+
+            if (error) {
+                if (error.code === '23505') throw new Error('Este correo ya está autorizado.');
+                throw error;
+            }
+            return { exito: true, data };
+        } catch (error) {
+            return { exito: false, mensaje: error.message };
+        }
+    },
+    async obtenerInvitacionesPendientes() {
+        try {
+            // Obtenemos todos los correos en la whitelist
+            const { data: whitelist, error: errW } = await supabase
+                .from('whitelist')
+                .select('*');
+
+            if (errW) throw errW;
+
+            // Obtenemos los correos que ya están registrados como usuarios
+            const { data: usuarios, error: errU } = await supabase
+                .from('usuario')
+                .select('correo_electronico');
+
+            if (errU) throw errU;
+
+            const correosRegistrados = new Set(usuarios.map(u => u.correo_electronico));
+
+            // Filtramos: Solo los que están en whitelist pero NO en usuarios
+            return whitelist.filter(inv => !correosRegistrados.has(inv.correo_electronico));
+        } catch (error) {
+            console.error("Error al obtener invitaciones:", error);
+            return [];
+        }
+    },
+
+    async eliminarInvitacion(id) {
+        const { error } = await supabase.from('whitelist').delete().eq('id', id);
+        return { exito: !error, mensaje: error?.message };
     }
 };

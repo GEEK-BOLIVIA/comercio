@@ -7,9 +7,87 @@ export const usuarioView = {
         orden: 'asc',
         paginaActual: 1,
         filasPorPagina: 10,
-        rolActual: '' 
+        rolActual: ''
     },
+    async mostrarModalCompletarPerfil(userId, datosSugeridos) {
+        const { value: formValues } = await Swal.fire({
+            title: '<span class="text-slate-800 font-black uppercase text-sm">¡Bienvenido! Completa tu Perfil</span>',
+            html: `
+                <div class="text-left space-y-4 p-2">
+                    <p class="text-xs text-slate-500 mb-4">Para activar tu cuenta, necesitamos verificar tu identidad.</p>
+                    
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Nombre(s)</label>
+                        <input id="onboard-nombres" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/10" 
+                               value="${datosSugeridos.nombres || ''}">
+                    </div>
 
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Ap. Paterno</label>
+                            <input id="onboard-paterno" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/10" 
+                                   value="${datosSugeridos.apellido_paterno || ''}">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Ap. Materno</label>
+                            <input id="onboard-materno" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/10" 
+                                   value="${datosSugeridos.apellido_materno || ''}">
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Cédula de Identidad (C.I.)</label>
+                        <input id="onboard-ci" class="w-full bg-white border border-slate-300 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm" 
+                               placeholder="Ej. 1234567 LP">
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Celular / WhatsApp</label>
+                        <input id="onboard-celular" type="tel" class="w-full bg-white border border-slate-300 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm" 
+                               placeholder="Ej. 70712345">
+                    </div>
+                </div>
+            `,
+            icon: 'info',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            confirmButtonText: 'ACTIVAR CUENTA',
+            confirmButtonColor: '#000000',
+            customClass: {
+                popup: 'rounded-[32px] border-none shadow-2xl',
+                confirmButton: 'rounded-xl px-10 py-4 font-black text-sm transition-all hover:scale-105'
+            },
+            preConfirm: () => {
+                const ci = document.getElementById('onboard-ci').value.trim();
+                const celular = document.getElementById('onboard-celular').value.trim();
+                const nombres = document.getElementById('onboard-nombres').value.trim();
+                const paterno = document.getElementById('onboard-paterno').value.trim();
+
+                if (!ci || !celular || !nombres || !paterno) {
+                    Swal.showValidationMessage('Todos los campos son obligatorios');
+                    return false;
+                }
+                return {
+                    id: userId, // Importante para que el modelo haga el match
+                    nombres,
+                    apellido_paterno: paterno,
+                    apellido_materno: document.getElementById('onboard-materno').value.trim(),
+                    ci,
+                    celular
+                };
+            }
+        });
+
+        if (formValues) {
+            // MEJORA: Llamamos directamente al modelo para guardar
+            // O podrías retornar formValues al controlador. 
+            // Para mantener la lógica limpia, retornamos al controlador:
+            const { usuarioModel } = await import('../models/usuarioModel.js');
+            const res = await usuarioModel.actualizar(userId, formValues);
+            return res.exito;
+        }
+        return formValues || null;
+    },
     /**
      * MÉTODOS DE NOTIFICACIÓN ESTILO PREMIUM
      */
@@ -58,7 +136,7 @@ export const usuarioView = {
 
         // Filtramos y ordenamos antes de paginar
         let datosFiltrados = this._ordenarDatos(this._filtrarDatos(datos));
-        
+
         const inicio = (this._estado.paginaActual - 1) * this._estado.filasPorPagina;
         const fin = inicio + this._estado.filasPorPagina;
         const datosPaginados = datosFiltrados.slice(inicio, fin);
@@ -70,10 +148,18 @@ export const usuarioView = {
                         <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Gestión de ${infoConfig.titulo}</h1>
                         <p class="text-slate-500 text-sm">Administración y control de perfiles tipo ${infoConfig.rol}.</p>
                     </div>
-                    <button onclick="usuarioController.mostrarFormulario()" 
-                            class="bg-${infoConfig.color}-600 hover:bg-${infoConfig.color}-700 text-white px-6 py-3 rounded-2xl transition-all shadow-lg shadow-${infoConfig.color}-200 font-bold text-sm flex items-center gap-2 w-fit">
-                        <span class="material-symbols-outlined text-[20px]">person_add</span> Nuevo ${infoConfig.rol}
-                    </button>
+                    
+                    <div class="flex flex-wrap gap-3">
+                        <button onclick="usuarioView.mostrarInvitacionesPendientes()" 
+                                class="bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 px-5 py-3 rounded-2xl transition-all shadow-sm font-bold text-sm flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[20px]">mail</span> Pendientes
+                        </button>
+
+                        <button onclick="usuarioController.mostrarFormulario()" 
+                                class="bg-${infoConfig.color}-600 hover:bg-${infoConfig.color}-700 text-white px-6 py-3 rounded-2xl transition-all shadow-lg shadow-${infoConfig.color}-200 font-bold text-sm flex items-center gap-2 w-fit">
+                            <span class="material-symbols-outlined text-[20px]">person_add</span> Nuevo ${infoConfig.rol}
+                        </button>
+                    </div>
                 </div>
 
                 <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
@@ -109,9 +195,9 @@ export const usuarioView = {
                             </thead>
                             <tbody class="divide-y divide-slate-100">
                                 ${datosPaginados.length > 0
-                                    ? datosPaginados.map((u, index) => this._crearFila(u, infoConfig.color, inicio + index + 1)).join('')
-                                    : `<tr><td colspan="6" class="px-6 py-12 text-center text-slate-400 italic text-sm">No se encontraron usuarios</td></tr>`
-                                }
+                ? datosPaginados.map((u, index) => this._crearFila(u, infoConfig.color, inicio + index + 1)).join('')
+                : `<tr><td colspan="6" class="px-6 py-12 text-center text-slate-400 italic text-sm">No se encontraron usuarios activos</td></tr>`
+            }
                             </tbody>
                         </table>
                     </div>
@@ -124,7 +210,6 @@ export const usuarioView = {
         contenedor.innerHTML = html;
         this._enfocarBusqueda();
     },
-
     /**
      * ESTRUCTURA DE FILA INDIVIDUAL
      */
@@ -171,8 +256,8 @@ export const usuarioView = {
     _filtrarDatos(datos) {
         if (!this._estado.busqueda) return [...datos];
         const term = this._estado.busqueda.toLowerCase();
-        return datos.filter(u => 
-            u.nombres.toLowerCase().includes(term) || 
+        return datos.filter(u =>
+            u.nombres.toLowerCase().includes(term) ||
             u.apellido_paterno.toLowerCase().includes(term) ||
             (u.apellido_materno && u.apellido_materno.toLowerCase().includes(term)) ||
             u.correo_electronico.toLowerCase().includes(term) ||
@@ -277,78 +362,146 @@ export const usuarioView = {
             title: `<span class="text-slate-800 font-black uppercase text-sm">${titulo}</span>`,
             html: `
                 <div class="text-left space-y-4 p-2">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="space-y-1">
-                            <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Nombres</label>
-                            <input id="swal-nombres" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-${color}-500/10 outline-none" 
-                                   placeholder="Ej. Juan Pablo" value="${datos.nombres || ''}">
-                        </div>
-                        <div class="space-y-1">
-                            <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Apellido Paterno</label>
-                            <input id="swal-paterno" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-${color}-500/10 outline-none" 
-                                   placeholder="Ej. Perez" value="${datos.apellido_paterno || ''}">
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="space-y-1">
-                            <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Apellido Materno</label>
-                            <input id="swal-materno" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-${color}-500/10 outline-none" 
-                                   placeholder="Ej. Mamani" value="${datos.apellido_materno || ''}">
-                        </div>
-                        <div class="space-y-1">
-                            <label class="text-[10px] font-black text-slate-400 uppercase ml-2">C.I. / Documento</label>
-                            <input id="swal-ci" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-${color}-500/10 outline-none" 
-                                   placeholder="Ej. 8475632" value="${datos.ci || ''}">
-                        </div>
-                    </div>
+                    <p class="text-xs text-slate-500">
+                        ${esEdicion
+                    ? 'Modifica los datos básicos del perfil.'
+                    : 'Ingresa el correo para autorizar el acceso. El usuario completará su perfil al iniciar sesión.'}
+                    </p>
 
                     <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Correo Electrónico (Para invitación)</label>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Correo Electrónico</label>
                         <input id="swal-email" type="email" 
                                ${esEdicion ? 'disabled' : ''} 
-                               class="${esEdicion ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-50'} w-full border border-slate-200 rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-${color}-500/10 outline-none" 
-                               placeholder="correo@ejemplo.com" value="${datos.correo_electronico || ''}">
-                        ${esEdicion ? '<p class="text-[9px] text-amber-500 font-bold ml-2 italic">* El correo no se puede modificar por seguridad</p>' : ''}
+                               class="${esEdicion ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white shadow-sm border-slate-200'} w-full border rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-${color}-500/10 outline-none" 
+                               placeholder="ejemplo@correo.com" value="${datos.correo_electronico || ''}">
                     </div>
 
                     <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Celular / WhatsApp</label>
-                        <input id="swal-celular" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-${color}-500/10 outline-none" 
-                               placeholder="Ej. 70712345" value="${datos.celular || ''}">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Nombre o Alias (Opcional)</label>
+                        <input id="swal-nombres" class="w-full bg-white shadow-sm border border-slate-200 rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-${color}-500/10 outline-none" 
+                               placeholder="Ej. Juan Perez" value="${datos.nombres || ''}">
                     </div>
+                    
+                    ${esEdicion ? `
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase ml-2">C.I.</label>
+                            <input id="swal-ci" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm outline-none" value="${datos.ci || ''}">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Celular</label>
+                            <input id="swal-celular" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm outline-none" value="${datos.celular || ''}">
+                        </div>
+                    </div>
+                    ` : ''}
                 </div>
             `,
             showCancelButton: true,
-            confirmButtonText: esEdicion ? 'Guardar Cambios' : 'Enviar Invitación',
+            confirmButtonText: esEdicion ? 'Guardar Cambios' : 'Autorizar Acceso',
             cancelButtonText: 'Cancelar',
             confirmButtonColor: '#000000',
             customClass: {
-                popup: 'rounded-[32px] border-none shadow-2xl w-[90%] max-w-lg',
-                confirmButton: 'rounded-xl px-6 py-3 font-bold text-sm uppercase transition-all hover:scale-105',
-                cancelButton: 'rounded-xl px-6 py-3 font-bold text-sm bg-slate-100 text-slate-500'
+                popup: 'rounded-[32px] border-none shadow-2xl w-[90%] max-w-md',
+                confirmButton: 'rounded-xl px-8 py-3 font-bold text-sm uppercase transition-all hover:scale-105',
+                cancelButton: 'rounded-xl px-8 py-3 font-bold text-sm bg-slate-100 text-slate-500'
             },
             preConfirm: () => {
-                const nombres = document.getElementById('swal-nombres').value.trim();
                 const email = document.getElementById('swal-email').value.trim();
-                
-                if (!nombres || !email) {
-                    Swal.showValidationMessage('Nombres y Correo son obligatorios');
+                const nombres = document.getElementById('swal-nombres').value.trim();
+
+                if (!email) {
+                    Swal.showValidationMessage('El correo electrónico es obligatorio');
                     return false;
                 }
-                
-                return {
-                    nombres: nombres,
-                    apellido_paterno: document.getElementById('swal-paterno').value.trim(),
-                    apellido_materno: document.getElementById('swal-materno').value.trim(),
-                    ci: document.getElementById('swal-ci').value.trim(),
+
+                // Estructura mínima para el controlador
+                const payload = {
                     correo_electronico: email,
-                    celular: document.getElementById('swal-celular').value.trim()
+                    nombres: nombres || 'Nuevo Usuario',
+                    apellido_paterno: '',
+                    apellido_materno: '',
+                    ci: '',
+                    celular: ''
                 };
+
+                // Si es edición, capturamos los campos extra si existen
+                if (esEdicion) {
+                    payload.ci = document.getElementById('swal-ci').value.trim();
+                    payload.celular = document.getElementById('swal-celular').value.trim();
+                }
+
+                return payload;
             }
         });
 
-        return formValues; // Retorna los datos al controller
+        return formValues;
+    },
+    async mostrarInvitacionesPendientes() {
+        this.mostrarCargando('Cargando invitaciones...');
+        const { usuarioModel } = await import('../models/usuarioModel.js');
+        const invitaciones = await usuarioModel.obtenerInvitacionesPendientes();
+        Swal.close();
+
+        Swal.fire({
+            title: '<span class="text-slate-800 font-black uppercase text-sm">Invitaciones Pendientes</span>',
+            html: `
+            <div class="text-left mt-4 max-h-96 overflow-y-auto custom-scroll">
+                ${invitaciones.length === 0
+                    ? '<p class="text-center text-slate-400 py-8 italic">No hay invitaciones pendientes de aceptar.</p>'
+                    : `
+                    <div class="space-y-2">
+                        ${invitaciones.map(inv => `
+                            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                                <div>
+                                    <p class="text-sm font-bold text-slate-700">${inv.correo_electronico}</p>
+                                    <p class="text-[10px] font-black text-blue-500 uppercase">${inv.rol}</p>
+                                </div>
+                                <button onclick="usuarioView.cancelarInvitacion('${inv.id}')" class="text-red-400 hover:text-red-600 p-2">
+                                    <span class="material-symbols-outlined text-sm">delete</span>
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                `}
+            </div>
+        `,
+            showConfirmButton: false,
+            showCloseButton: true,
+            customClass: { popup: 'rounded-[32px] border-none shadow-2xl' }
+        });
+    },
+    confirmarRevocarInvitacion(id, correo) {
+        Swal.fire({
+            title: '<span class="text-slate-800 font-black uppercase text-sm">¿Revocar Acceso?</span>',
+            text: `El correo ${correo} ya no podrá registrarse en el sistema.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'SÍ, ELIMINAR',
+            cancelButtonText: 'CANCELAR',
+            confirmButtonColor: '#ef4444',
+            customClass: {
+                popup: 'rounded-[28px]',
+                confirmButton: 'rounded-xl px-6 py-3 font-bold text-xs',
+                cancelButton: 'rounded-xl px-6 py-3 font-bold text-xs bg-slate-100 text-slate-500'
+            }
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                const { usuarioModel } = await import('../models/usuarioModel.js');
+                const res = await usuarioModel.eliminarInvitacion(id);
+                if (res.exito) {
+                    this.notificarExito('Invitación eliminada correctamente');
+                    this.mostrarInvitacionesPendientes(); // Recarga el modal de invitaciones
+                }
+            }
+        });
+    },
+    async cancelarInvitacion(id) {
+        const { usuarioModel } = await import('../models/usuarioModel.js');
+        const res = await usuarioModel.eliminarInvitacion(id);
+        if (res.exito) {
+            this.notificarExito('Invitación revocada');
+            this.mostrarInvitacionesPendientes(); // Recargar el modal
+        }
     }
 };
 

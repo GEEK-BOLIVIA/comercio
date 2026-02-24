@@ -1,44 +1,30 @@
-import { supabase } from './config/supabaseClient.js';
+import { usuarioController } from './controllers/usuarioController.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 0. VERIFICACIÓN INICIAL: Si ya hay sesión, redirigir según el estado del perfil
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-        const { data: usuarioDB } = await supabase
-            .from('usuario')
-            .select('id, ci')
-            .eq('id', session.user.id)
-            .single();
+    
+    // 1. DELEGACIÓN DE CONTROL: El controlador decide a dónde ir si ya hay sesión
+    // Esto reemplaza tu "Paso 0" manual y asegura que se aplique la lógica de Whitelist/Onboarding
+    await usuarioController.gestionarRedireccionInicial();
 
-        if (usuarioDB && usuarioDB.ci) {
-            window.location.href = 'administracion.html';
-        } else {
-            window.location.href = 'registrar-usuario.html';
-        }
-        return; 
-    }
-
+    // 2. REFERENCIAS A ELEMENTOS
     const btnLogin = document.getElementById('btn-login');
     const btnGoogle = document.getElementById('btn-google-auth');
-    const btnFacebook = document.getElementById('btn-facebook-auth'); // Referencia al nuevo botón
+    const btnFacebook = document.getElementById('btn-facebook-auth');
     const togglePass = document.getElementById('toggle-password');
 
-    // 1. Ver/Ocultar Contraseña
+    // 3. INTERACCIÓN UI: Ver/Ocultar Contraseña
     if (togglePass) {
         togglePass.addEventListener('click', () => {
             const input = document.getElementById('password');
             const icon = document.getElementById('password-icon');
-            if (input.type === 'password') {
-                input.type = 'text';
-                icon.textContent = 'visibility_off';
-            } else {
-                input.type = 'password';
-                icon.textContent = 'visibility';
-            }
+            const isPass = input.type === 'password';
+            
+            input.type = isPass ? 'text' : 'password';
+            icon.textContent = isPass ? 'visibility_off' : 'visibility';
         });
     }
 
-    // 2. Ejecutar Login Tradicional (Email/Password)
+    // 4. EVENTO: Login Tradicional
     if (btnLogin) {
         btnLogin.addEventListener('click', async () => {
             const email = document.getElementById('email').value;
@@ -49,52 +35,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
 
-            const respuesta = await window.usuarioController.manejarLogin(email, pass);
-            
-            if (!respuesta.exito) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error de acceso',
-                    text: respuesta.mensaje
-                });
-            }
+            // El controlador maneja la carga, el error y la redirección
+            await usuarioController.manejarLogin(email, pass);
         });
     }
 
-    // 3. Ejecutar Login con Google
+    // 5. EVENTO: Login Social (Google)
     if (btnGoogle) {
-        btnGoogle.addEventListener('click', async () => {
-            const { error } = await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    redirectTo: window.location.origin + window.location.pathname 
-                }
-            });
-
-            if (error) {
-                Swal.fire({ icon: 'error', title: 'Error con Google', text: error.message });
-            }
+        btnGoogle.addEventListener('click', () => {
+            usuarioController.manejarLoginSocial('google');
         });
     }
 
-    // 4. Ejecutar Login con Facebook
+    // 6. EVENTO: Login Social (Facebook)
     if (btnFacebook) {
-        btnFacebook.addEventListener('click', async () => {
-            const { error } = await supabase.auth.signInWithOAuth({
-                provider: 'facebook',
-                options: {
-                    // Al regresar, el "Paso 0" detectará la sesión y decidirá la ruta
-                    redirectTo: window.location.origin + window.location.pathname 
-                }
-            });
-
-            if (error) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error con Facebook',
-                    text: error.message
-                });
-            }
+        btnFacebook.addEventListener('click', () => {
+            usuarioController.manejarLoginSocial('facebook');
         });
     }
 });
