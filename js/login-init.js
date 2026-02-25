@@ -1,6 +1,5 @@
 import { usuarioController } from './controllers/usuarioController.js';
-import { supabase } from '../config/supabaseClient.js'; // Asegúrate de importar supabase
-
+import { supabase } from '../js/config/supabaseClient.js';
 document.addEventListener('DOMContentLoaded', async () => {
     
     // 1. ESCUCHAR CAMBIOS DE AUTENTICACIÓN (Vital para Google + GitHub Pages)
