@@ -13,41 +13,41 @@ export const usuarioView = {
         const { value: formValues } = await Swal.fire({
             title: '<span class="text-slate-800 font-black uppercase text-sm">¡Bienvenido! Completa tu Perfil</span>',
             html: `
-                <div class="text-left space-y-4 p-2">
-                    <p class="text-xs text-slate-500 mb-4">Para activar tu cuenta, necesitamos verificar tu identidad.</p>
-                    
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Nombre(s)</label>
-                        <input id="onboard-nombres" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/10" 
-                               value="${datosSugeridos.nombres || ''}">
-                    </div>
+            <div class="text-left space-y-4 p-2">
+                <p class="text-xs text-slate-500 mb-4">Para activar tu cuenta, necesitamos verificar tu identidad.</p>
+                
+                <div class="space-y-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Nombre(s)</label>
+                    <input id="onboard-nombres" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/10" 
+                           value="${datosSugeridos.nombres || ''}">
+                </div>
 
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="space-y-1">
-                            <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Ap. Paterno</label>
-                            <input id="onboard-paterno" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/10" 
-                                   value="${datosSugeridos.apellido_paterno || ''}">
-                        </div>
-                        <div class="space-y-1">
-                            <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Ap. Materno</label>
-                            <input id="onboard-materno" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/10" 
-                                   value="${datosSugeridos.apellido_materno || ''}">
-                        </div>
-                    </div>
-
+                <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Cédula de Identidad (C.I.)</label>
-                        <input id="onboard-ci" class="w-full bg-white border border-slate-300 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm" 
-                               placeholder="Ej. 1234567 LP">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Ap. Paterno</label>
+                        <input id="onboard-paterno" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/10" 
+                               value="${datosSugeridos.apellido_paterno || ''}">
                     </div>
-
                     <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Celular / WhatsApp</label>
-                        <input id="onboard-celular" type="tel" class="w-full bg-white border border-slate-300 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm" 
-                               placeholder="Ej. 70712345">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Ap. Materno</label>
+                        <input id="onboard-materno" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/10" 
+                               value="${datosSugeridos.apellido_materno || ''}">
                     </div>
                 </div>
-            `,
+
+                <div class="space-y-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Cédula de Identidad (C.I.)</label>
+                    <input id="onboard-ci" class="w-full bg-white border border-slate-300 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm" 
+                           placeholder="Ej. 1234567 LP">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Celular / WhatsApp</label>
+                    <input id="onboard-celular" type="tel" class="w-full bg-white border border-slate-300 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm" 
+                           placeholder="Ej. 70712345">
+                </div>
+            </div>
+        `,
             icon: 'info',
             allowOutsideClick: false,
             allowEscapeKey: false,
@@ -68,7 +68,6 @@ export const usuarioView = {
                     return false;
                 }
                 return {
-                    id: userId, // Importante para que el modelo haga el match
                     nombres,
                     apellido_paterno: paterno,
                     apellido_materno: document.getElementById('onboard-materno').value.trim(),
@@ -78,15 +77,7 @@ export const usuarioView = {
             }
         });
 
-        if (formValues) {
-            // MEJORA: Llamamos directamente al modelo para guardar
-            // O podrías retornar formValues al controlador. 
-            // Para mantener la lógica limpia, retornamos al controlador:
-            const { usuarioModel } = await import('../models/usuarioModel.js');
-            const res = await usuarioModel.actualizar(userId, formValues);
-            return res.exito;
-        }
-        return formValues || null;
+        return formValues || null; // Retorna el objeto con los datos o null si cerró el modal
     },
     /**
      * MÉTODOS DE NOTIFICACIÓN ESTILO PREMIUM

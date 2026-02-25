@@ -235,13 +235,18 @@ export const usuarioModel = {
         try {
             const { data, error } = await supabase
                 .from('whitelist')
-                .insert([datos]);
+                .insert([{
+                    correo_electronico: datos.correo_electronico,
+                    rol: datos.rol,
+                    creado_en: new Date().toISOString() // Útil para que Make ordene o filtre
+                }])
+                .select(); // IMPORTANTE: .select() para confirmar la inserción
 
             if (error) {
-                if (error.code === '23505') throw new Error('Este correo ya está autorizado.');
+                if (error.code === '23505') throw new Error('Este correo ya está autorizado en la lista de espera.');
                 throw error;
             }
-            return { exito: true, data };
+            return { exito: true, data: data[0] };
         } catch (error) {
             return { exito: false, mensaje: error.message };
         }

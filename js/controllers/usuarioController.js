@@ -34,16 +34,15 @@ export const usuarioController = {
 
         const { auth, perfil, tipo } = sesion;
 
-        // 2. Caso: Acceso denegado (No está en usuario ni en whitelist)
+        // 2. Caso: Acceso denegado
         if (tipo === 'denegado') {
             await usuarioModel.logout();
-            usuarioView.notificarError("Acceso denegado: Tu correo no ha sido autorizado por un administrador.");
+            usuarioView.notificarError("Acceso denegado: Tu correo no ha sido autorizado.");
             setTimeout(() => window.location.href = 'index.html', 3000);
             return;
         }
 
-        // 3. Caso: Usuario Nuevo (Viene de Whitelist) o Perfil Incompleto
-        // Si es 'temporal' significa que es su primer login tras ser invitado
+        // 3. Caso: Usuario Nuevo (Whitelist) o Perfil Incompleto
         if (perfil.temporal || !perfil.ci || !perfil.celular) {
 
             const nombresAuto = this._distribuirNombre(
@@ -51,43 +50,44 @@ export const usuarioController = {
             );
 
             const datosSugeridos = {
-                ...perfil,
                 nombres: perfil.nombres || nombresAuto.nombres,
                 apellido_paterno: perfil.apellido_paterno || nombresAuto.paterno,
                 apellido_materno: perfil.apellido_materno || nombresAuto.materno,
             };
 
+            // Esperamos los datos capturados en el modal
             const completado = await usuarioView.mostrarModalCompletarPerfil(auth.id, datosSugeridos);
 
             if (completado) {
                 let res;
                 if (perfil.temporal) {
-                    // PRIMERA VEZ: Creamos el registro en la tabla 'usuario'
+                    // PRIMERA VEZ: Insertamos el registro completo en Supabase
                     const nuevoRegistro = {
                         id: auth.id,
-                        ...completado,
                         correo_electronico: auth.email,
-                        rol: perfil.rol, // El rol que le asignó el admin en la whitelist
-                        visible: true
+                        rol: perfil.rol,
+                        visible: true,
+                        ...completado // Aquí entran nombres, apellidos, CI y celular del modal
                     };
                     res = await usuarioModel.crear(nuevoRegistro);
-
-                    // Opcional: Borrar de whitelist para limpiar
-                    // await supabase.from('whitelist').delete().eq('correo_electronico', auth.email);
                 } else {
-                    // YA EXISTÍA: Solo actualizamos
+                    // YA EXISTÍA (pero estaba incompleto): Actualizamos
                     res = await usuarioModel.actualizar(auth.id, completado);
                 }
 
                 if (res.exito) {
-                    usuarioView.notificarExito("¡Bienvenido! Perfil configurado.");
-                    window.location.href = 'administracion.html';
+                    usuarioView.notificarExito("¡Bienvenido! Perfil configurado correctamente.");
+                    // Pequeña pausa para que vea el mensaje de éxito antes de redirigir
+                    setTimeout(() => window.location.href = 'administracion.html', 1500);
                 } else {
-                    usuarioView.notificarError("Error: " + res.mensaje);
+                    usuarioView.notificarError("No se pudo guardar: " + res.mensaje);
+                    // Si falla, cerramos sesión para evitar estados inconsistentes
+                    await usuarioModel.logout();
                 }
             } else {
+                // Si canceló el modal (aunque pusimos allowOutsideClick: false), deslogueamos
                 await usuarioModel.logout();
-                window.location.reload();
+                window.location.href = 'index.html';
             }
             return;
         }
@@ -214,48 +214,37 @@ export const usuarioController = {
     },
 
     async guardarUsuario(id, datos) {
-        // 1. UI: Mostrar estado de carga según la acción
-        const mensajeCarga = id ? 'Actualizando datos...' : 'Autorizando en Lista Blanca...';
+        const mensajeCarga = id ? 'Actualizando datos...' : 'Enviando invitación...';
         usuarioView.mostrarCargando(mensajeCarga);
 
-        let resultado;
-
         try {
+            let resultado;
             if (id) {
-                // CASO A: El usuario ya existe (Edición)
-                // Se actualizan los datos directamente en la tabla 'usuario'
+                // CASO A: Edición de usuario existente
                 resultado = await usuarioModel.actualizar(id, datos);
             } else {
-                // CASO B: Es una invitación nueva (Whitelist)
-                // Solo guardamos correo y rol para permitir el acceso futuro
+                // CASO B: Invitación (Aquí es donde Make.com entra en acción)
                 const datosInvitacion = {
-                    correo_electronico: datos.correo_electronico,
-                    rol: this._estado.rolActual // El rol seleccionado en la vista actual
+                    correo_electronico: datos.correo_electronico.toLowerCase().trim(),
+                    rol: this._estado.rolActual
                 };
-
-                // Llamamos al nuevo método del modelo que creamos para la tabla whitelist
                 resultado = await usuarioModel.autorizarEnWhitelist(datosInvitacion);
             }
 
-            // 2. Manejo de respuesta
             if (resultado.exito) {
-                const mensajeExito = id
-                    ? 'Perfil actualizado correctamente.'
-                    : `Acceso autorizado para: ${datos.correo_electronico}`;
-
-                usuarioView.notificarExito(mensajeExito);
-
-                // Refrescar la tabla para ver los cambios
+                if (id) {
+                    usuarioView.notificarExito('Perfil actualizado correctamente.');
+                } else {
+                    // Notificación específica para el flujo de Make.com
+                    usuarioView.notificarExito(`¡Invitación en camino! Se ha autorizado a ${datos.correo_electronico}. El correo llegará en unos instantes.`);
+                }
                 await this.refrescarVista();
             } else {
-                // Error controlado (ej. correo ya existe en whitelist)
                 usuarioView.notificarError(resultado.mensaje);
             }
-
         } catch (error) {
-            // Error inesperado
             console.error("Error en guardarUsuario:", error);
-            usuarioView.notificarError("Ocurrió un error inesperado al procesar la solicitud.");
+            usuarioView.notificarError("Ocurrió un error inesperado.");
         }
     }
 };
