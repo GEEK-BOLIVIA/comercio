@@ -13,15 +13,13 @@ export const usuarioModel = {
             const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: proveedor,
                 options: {
-                    // Esto redirige al usuario de vuelta a tu app tras loguearse
-                    redirectTo: window.location.origin
+                    // Forzamos la URL de redirección para evitar localhost en producción
+                    redirectTo: window.location.origin + window.location.pathname
                 }
             });
-
             if (error) throw error;
             return { exito: true, data };
         } catch (err) {
-            console.error(`Error en login con ${proveedor}:`, err.message);
             return { exito: false, mensaje: err.message };
         }
     },
