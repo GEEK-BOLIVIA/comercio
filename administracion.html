@@ -164,7 +164,8 @@
                                 class="material-symbols-outlined text-[18px] transition-transform group-open:rotate-180 sidebar-hide">expand_more</span>
                         </summary>
                         <div class="flex flex-col gap-1 mt-1 ml-4 pl-4 border-l-2 border-slate-100 sidebar-hide">
-                            <button onclick="ownerController.mostrarFormularioCrear()"
+                            <button
+                                onclick="event.stopPropagation(); usuarioController.abrirFormularioInvitacion('owner')"
                                 class="flex items-center gap-3 rounded-lg px-3 py-1.5 text-slate-400 hover:text-blue-500 transition-all text-[10px] font-bold uppercase">
                                 <span class="material-symbols-outlined text-[16px]">add_moderator</span>
                                 Nuevo Owner
@@ -183,7 +184,8 @@
                                 class="material-symbols-outlined text-[18px] transition-transform group-open:rotate-180 sidebar-hide">expand_more</span>
                         </summary>
                         <div class="flex flex-col gap-1 mt-1 ml-4 pl-4 border-l-2 border-slate-100 sidebar-hide">
-                            <button onclick="adminController.mostrarFormularioCrear()"
+                            <button
+                                onclick="event.stopPropagation(); usuarioController.abrirFormularioInvitacion('admin')"
                                 class="flex items-center gap-3 rounded-lg px-3 py-1.5 text-slate-400 hover:text-blue-500 transition-all text-[10px] font-bold uppercase">
                                 <span class="material-symbols-outlined text-[16px]">person_add</span>
                                 Nuevo Administrador
@@ -197,16 +199,7 @@
                                 <span class="material-symbols-outlined text-[20px]">group</span>
                                 <p class="text-sm font-medium sidebar-hide">Clientes</p>
                             </div>
-                            <span
-                                class="material-symbols-outlined text-[18px] transition-transform group-open:rotate-180 sidebar-hide">expand_more</span>
                         </summary>
-                        <div class="flex flex-col gap-1 mt-1 ml-4 pl-4 border-l-2 border-slate-100 sidebar-hide">
-                            <button onclick="clienteController.mostrarFormularioCrear()"
-                                class="flex items-center gap-3 rounded-lg px-3 py-1.5 text-slate-400 hover:text-blue-500 transition-all text-[10px] font-bold uppercase">
-                                <span class="material-symbols-outlined text-[16px]">person_add_alt</span>
-                                Nuevo Cliente
-                            </button>
-                        </div>
                     </details>
                 </div>
                 <div class="flex flex-col gap-1">

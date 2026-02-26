@@ -68,10 +68,18 @@ export const usuarioModel = {
                 .maybeSingle();
 
             if (invitacion) {
-                // Retornamos un "perfil temporal" basado en la invitación para que el controller sepa qué hacer
                 return {
                     auth: user,
-                    perfil: { correo_electronico: user.email, rol: invitacion.rol, temporal: true },
+                    perfil: {
+                        correo_electronico: user.email,
+                        rol: invitacion.rol,
+                        temporal: true,
+                        nombres: '',           // Inicializamos vacíos
+                        apellido_paterno: '',
+                        apellido_materno: '',
+                        ci: '',
+                        celular: ''
+                    },
                     tipo: 'invitado'
                 };
             }
@@ -251,32 +259,37 @@ export const usuarioModel = {
     },
     async obtenerInvitacionesPendientes() {
         try {
-            // Obtenemos todos los correos en la whitelist
+            // Gracias al borrado automático, todo lo que esté en 
+            // whitelist es, por definición, una invitación pendiente.
             const { data: whitelist, error: errW } = await supabase
                 .from('whitelist')
-                .select('*');
+                .select('*')
+                .order('creado_en', { ascending: false });
 
             if (errW) throw errW;
-
-            // Obtenemos los correos que ya están registrados como usuarios
-            const { data: usuarios, error: errU } = await supabase
-                .from('usuario')
-                .select('correo_electronico');
-
-            if (errU) throw errU;
-
-            const correosRegistrados = new Set(usuarios.map(u => u.correo_electronico));
-
-            // Filtramos: Solo los que están en whitelist pero NO en usuarios
-            return whitelist.filter(inv => !correosRegistrados.has(inv.correo_electronico));
+            return whitelist;
         } catch (error) {
             console.error("Error al obtener invitaciones:", error);
             return [];
         }
     },
+    async eliminarInvitacionPorCorreo(correo) {
+        try {
+            const { error } = await supabase
+                .from('whitelist')
+                .delete()
+                .eq('correo_electronico', correo.toLowerCase().trim());
 
+            if (error) throw error;
+            return { exito: true };
+        } catch (error) {
+            console.error("Error al limpiar whitelist por correo:", error);
+            return { exito: false, mensaje: error.message };
+        }
+    },
     async eliminarInvitacion(id) {
         const { error } = await supabase.from('whitelist').delete().eq('id', id);
         return { exito: !error, mensaje: error?.message };
-    }
+    },
+
 };

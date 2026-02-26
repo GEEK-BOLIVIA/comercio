@@ -1,4 +1,7 @@
 import { PaginationHelper } from '../utils/paginationHelper.js';
+import { detalleUsuarioModal } from './components/detalleUsuarioModal.js';
+import { eliminarUsuarioModal } from './components/eliminarUsuarioModal.js';
+import { completarPerfilModal } from './components/completarPerfilModal.js';
 
 export const usuarioView = {
     // Estado local para manejar UI de cada rol de forma independiente
@@ -9,76 +12,7 @@ export const usuarioView = {
         filasPorPagina: 10,
         rolActual: ''
     },
-    async mostrarModalCompletarPerfil(userId, datosSugeridos) {
-        const { value: formValues } = await Swal.fire({
-            title: '<span class="text-slate-800 font-black uppercase text-sm">¡Bienvenido! Completa tu Perfil</span>',
-            html: `
-            <div class="text-left space-y-4 p-2">
-                <p class="text-xs text-slate-500 mb-4">Para activar tu cuenta, necesitamos verificar tu identidad.</p>
-                
-                <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Nombre(s)</label>
-                    <input id="onboard-nombres" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/10" 
-                           value="${datosSugeridos.nombres || ''}">
-                </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Ap. Paterno</label>
-                        <input id="onboard-paterno" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/10" 
-                               value="${datosSugeridos.apellido_paterno || ''}">
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Ap. Materno</label>
-                        <input id="onboard-materno" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/10" 
-                               value="${datosSugeridos.apellido_materno || ''}">
-                    </div>
-                </div>
-
-                <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Cédula de Identidad (C.I.)</label>
-                    <input id="onboard-ci" class="w-full bg-white border border-slate-300 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm" 
-                           placeholder="Ej. 1234567 LP">
-                </div>
-
-                <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Celular / WhatsApp</label>
-                    <input id="onboard-celular" type="tel" class="w-full bg-white border border-slate-300 rounded-2xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm" 
-                           placeholder="Ej. 70712345">
-                </div>
-            </div>
-        `,
-            icon: 'info',
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-            confirmButtonText: 'ACTIVAR CUENTA',
-            confirmButtonColor: '#000000',
-            customClass: {
-                popup: 'rounded-[32px] border-none shadow-2xl',
-                confirmButton: 'rounded-xl px-10 py-4 font-black text-sm transition-all hover:scale-105'
-            },
-            preConfirm: () => {
-                const ci = document.getElementById('onboard-ci').value.trim();
-                const celular = document.getElementById('onboard-celular').value.trim();
-                const nombres = document.getElementById('onboard-nombres').value.trim();
-                const paterno = document.getElementById('onboard-paterno').value.trim();
-
-                if (!ci || !celular || !nombres || !paterno) {
-                    Swal.showValidationMessage('Todos los campos son obligatorios');
-                    return false;
-                }
-                return {
-                    nombres,
-                    apellido_paterno: paterno,
-                    apellido_materno: document.getElementById('onboard-materno').value.trim(),
-                    ci,
-                    celular
-                };
-            }
-        });
-
-        return formValues || null; // Retorna el objeto con los datos o null si cerró el modal
-    },
     /**
      * MÉTODOS DE NOTIFICACIÓN ESTILO PREMIUM
      */
@@ -93,6 +27,10 @@ export const usuarioView = {
         });
     },
 
+    async mostrarModalCompletarPerfil(userId, datosSugeridos) {
+        return await completarPerfilModal.mostrar(datosSugeridos);
+    },
+    
     notificarError(mensaje) {
         Swal.fire({
             icon: 'error',
@@ -304,55 +242,8 @@ export const usuarioView = {
         usuarioController.verDetalle(id);
     },
 
-    mostrarDetalle(u) {
-        Swal.fire({
-            title: '<span class="text-slate-800 font-black uppercase text-sm">Ficha de Usuario</span>',
-            html: `
-                <div class="text-left space-y-4 p-2">
-                    <div class="p-5 bg-slate-50 rounded-[24px] border border-slate-100 shadow-inner flex items-center gap-4">
-                        <div class="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-2xl font-black">
-                            ${u.nombres[0]}${u.apellido_paterno[0]}
-                        </div>
-                        <div>
-                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nombre Completo</p>
-                            <p class="text-slate-800 font-bold text-lg uppercase">${u.nombres} ${u.apellido_paterno} ${u.apellido_materno || ''}</p>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">C.I.</p>
-                            <p class="text-slate-700 font-bold text-sm uppercase">${u.ci || 'N/A'}</p>
-                        </div>
-                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Teléfono</p>
-                            <p class="text-slate-700 font-bold text-sm">${u.celular || 'No registrado'}</p>
-                        </div>
-                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 col-span-2">
-                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Correo Electrónico</p>
-                            <p class="text-slate-700 font-bold text-sm">${u.correo_electronico}</p>
-                        </div>
-                    </div>
-                </div>`,
-            icon: 'info',
-            confirmButtonText: 'Cerrar',
-            confirmButtonColor: '#2563eb',
-            customClass: { popup: 'rounded-[32px] border-none shadow-2xl', confirmButton: 'rounded-xl px-10 py-3 font-bold text-sm uppercase' }
-        });
-    },
-
     confirmarEliminacion(id, nombre) {
-        Swal.fire({
-            title: '<span class="text-red-600 font-black uppercase text-sm">¿Desactivar Usuario?</span>',
-            text: `¿Estás seguro de que deseas quitar el acceso a ${nombre.toUpperCase()}?`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'SÍ, DESACTIVAR',
-            cancelButtonText: 'CANCELAR',
-            confirmButtonColor: '#000000',
-            customClass: { popup: 'rounded-[32px]', confirmButton: 'rounded-xl px-6 py-3 font-bold text-sm', cancelButton: 'rounded-xl px-6 py-3 font-bold text-sm bg-slate-100 text-slate-500' }
-        }).then((result) => {
-            if (result.isConfirmed) usuarioController.eliminarRegistro(id);
-        });
+        usuarioController.previsualizarEliminacion(id);
     },
     /**
      * FORMULARIO DINÁMICO PARA CREACIÓN (INVITACIÓN) O EDICIÓN
@@ -502,6 +393,9 @@ export const usuarioView = {
             this.notificarExito('Invitación revocada');
             this.mostrarInvitacionesPendientes(); // Recargar el modal
         }
+    },
+    mostrarDetalle(u) {
+        detalleUsuarioModal.mostrar(u);
     }
 };
 
