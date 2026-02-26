@@ -220,14 +220,26 @@ export const usuarioController = {
         try {
             let resultado;
             if (id) {
-                // CASO A: Edición de usuario existente
+                // CASO A: Edición de usuario existente (Sin cambios aquí)
                 resultado = await usuarioModel.actualizar(id, datos);
             } else {
-                // CASO B: Invitación (Aquí es donde Make.com entra en acción)
+                // CASO B: Invitación (NUEVA LÓGICA DE FILTRADO)
+
+                // 1. Definir roles que requieren invitación obligatoria
+                const rolesRestringidos = ['owner', 'admin'];
+                const rolALoggearse = this._estado.rolActual.toLowerCase();
+
+                // 2. Validar si el rol actual está en la lista de permitidos para invitación
+                if (!rolesRestringidos.includes(rolALoggearse)) {
+                    usuarioView.notificarError(`El rol "${rolALoggearse}" no requiere invitación por este medio.`);
+                    return; // Detenemos la ejecución aquí
+                }
+
                 const datosInvitacion = {
                     correo_electronico: datos.correo_electronico.toLowerCase().trim(),
                     rol: this._estado.rolActual
                 };
+
                 resultado = await usuarioModel.autorizarEnWhitelist(datosInvitacion);
             }
 
@@ -235,8 +247,7 @@ export const usuarioController = {
                 if (id) {
                     usuarioView.notificarExito('Perfil actualizado correctamente.');
                 } else {
-                    // Notificación específica para el flujo de Make.com
-                    usuarioView.notificarExito(`¡Invitación en camino! Se ha autorizado a ${datos.correo_electronico}. El correo llegará en unos instantes.`);
+                    usuarioView.notificarExito(`¡Invitación en camino! Se ha autorizado a ${datos.correo_electronico}.`);
                 }
                 await this.refrescarVista();
             } else {
