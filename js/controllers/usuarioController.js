@@ -5,6 +5,7 @@ import { editarUsuarioModal } from '../views/components/editarUsuarioModal.js';
 import { eliminarUsuarioModal } from '../views/components/eliminarUsuarioModal.js';
 
 export const usuarioController = {
+    
     _estado: {
         rolActual: '',
         configActual: null
