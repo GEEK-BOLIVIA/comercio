@@ -2,7 +2,6 @@ import { usuarioController } from './controllers/usuarioController.js';
 import { supabase } from '../js/config/supabaseClient.js';
 
 let redireccionEjecutada = false;
-
 /**
  * Inicia el flujo de verificación de perfil y redirección.
  * Se añade try/catch para liberar la bandera en caso de error.
