@@ -96,9 +96,25 @@ export const usuarioModel = {
      * Cierra la sesión globalmente y limpia el storage local
      */
     async logout() {
-        const { error } = await supabase.auth.signOut();
-        sessionStorage.clear();
-        return { exito: !error };
+        try {
+            // Forzamos el cierre de sesión en el servidor
+            await supabase.auth.signOut();
+
+            // Limpiamos absolutamente todo rastro local
+            sessionStorage.clear();
+            localStorage.clear(); // Supabase guarda el token aquí
+
+            // IMPORTANTE: Limpiar cookies de la sesión actual
+            document.cookie.split(";").forEach((c) => {
+                document.cookie = c
+                    .replace(/^ +/, "")
+                    .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+            });
+
+            return { exito: true };
+        } catch (error) {
+            return { exito: false, mensaje: error.message };
+        }
     },
 
     // ==========================================
