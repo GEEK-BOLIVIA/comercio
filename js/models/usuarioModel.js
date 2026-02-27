@@ -117,10 +117,6 @@ export const usuarioModel = {
         }
     },
 
-    // ==========================================
-    // SECCIÓN: CRUD Y GESTIÓN DE USUARIOS
-    // ==========================================
-
     /**
      * Registra un usuario en Auth e inserta su perfil en la tabla pública
      */

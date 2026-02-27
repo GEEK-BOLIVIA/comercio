@@ -1,7 +1,6 @@
 import { usuarioController } from './controllers/usuarioController.js';
 import { supabase } from '../js/config/supabaseClient.js';
 
-// Bandera para evitar ejecuciones duplicadas
 let redireccionEjecutada = false;
 
 /**
