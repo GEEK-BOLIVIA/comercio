@@ -408,6 +408,35 @@ export const usuarioController = {
         } catch (error) {
             usuarioView.notificarError('Error al cargar el usuario.');
         }
+    },
+    /**
+ * Maneja el clic en los botones de Login Social (Google/Facebook)
+ */
+    async manejarLoginSocial(proveedor) {
+        try {
+            // 1. Bloqueamos la UI para evitar clics dobles
+            if (typeof usuarioView.mostrarLoading === 'function') {
+                usuarioView.mostrarLoading(true, `Conectando con ${proveedor}...`);
+            }
+
+            // 2. Llamamos al modelo (el que ya tiene la limpieza de tokens)
+            const resultado = await usuarioModel.loginConRedSocial(proveedor);
+
+            if (!resultado.exito) {
+                usuarioView.notificarError("Error al conectar: " + resultado.mensaje);
+            }
+            // Nota: Si tiene éxito, el navegador se redirigirá automáticamente a la página de Google/FB
+
+        } catch (error) {
+            console.error("Error crítico en el flujo de login:", error);
+            usuarioView.notificarError("Ocurrió un error inesperado al intentar iniciar sesión.");
+        } finally {
+            // 3. ¡IMPORTANTE! Desbloqueamos la UI si el proceso falla o se cancela
+            // Si no hacemos esto, el botón se queda "congelado" o con el spinner infinito
+            if (typeof usuarioView.mostrarLoading === 'function') {
+                usuarioView.mostrarLoading(false);
+            }
+        }
     }
 };
 

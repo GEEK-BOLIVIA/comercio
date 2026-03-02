@@ -2,9 +2,9 @@ import { usuarioController } from './controllers/usuarioController.js';
 import { supabase } from '../js/config/supabaseClient.js';
 
 let redireccionEjecutada = false;
+
 /**
  * Inicia el flujo de verificación de perfil y redirección.
- * Se añade try/catch para liberar la bandera en caso de error.
  */
 async function iniciarFlujoAcceso() {
     if (redireccionEjecutada) return;
@@ -15,7 +15,7 @@ async function iniciarFlujoAcceso() {
         await usuarioController.gestionarRedireccionInicial();
     } catch (error) {
         console.error("Error en iniciarFlujoAcceso:", error);
-        // Si falla, permitimos que el usuario intente loguearse de nuevo
+        // IMPORTANTE: Si falla, liberamos la bandera para permitir reintentos
         redireccionEjecutada = false;
     }
 }
@@ -23,21 +23,17 @@ async function iniciarFlujoAcceso() {
 document.addEventListener('DOMContentLoaded', async () => {
 
     // 1. ESCUCHAR CAMBIOS DE AUTENTICACIÓN
-    // Reemplaza el listener de Auth en login-init.js
     supabase.auth.onAuthStateChange(async (event, session) => {
         console.log("Evento Auth detectado:", event);
 
-        // Manejamos el inicio de sesión
         if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
-
-            // LIMPIEZA SEGURA: Solo borramos el hash si Supabase ya nos dio la sesión
+            // Limpiamos el hash de la URL (el token que devuelve Supabase) 
+            // para evitar que interfiera en futuras recargas
             if (window.location.hash) {
-                // Usamos replaceState para no ensuciar el historial
                 window.history.replaceState(null, null, window.location.pathname);
                 console.log("Token procesado y URL limpiada.");
             }
 
-            // Evitamos doble ejecución si ya estamos redirigiendo
             if (!redireccionEjecutada) {
                 await iniciarFlujoAcceso();
             }
@@ -49,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // 2. VERIFICACIÓN DE RESPALDO (Sesiones persistentes)
+    // 2. VERIFICACIÓN DE RESPALDO (Para sesiones ya activas al cargar)
     const { data: { session } } = await supabase.auth.getSession();
     if (session && !redireccionEjecutada) {
         await iniciarFlujoAcceso();
@@ -57,7 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- EVENTOS DE UI ---
     const btnLogin = document.getElementById('btn-login');
-    const btnGoogle = document.getElementById('btn-google-auth');
+    const btnGoogle = document.getElementById('btn-google-auth'); // <-- Verifica este ID en tu HTML
     const togglePass = document.getElementById('toggle-password');
 
     // Mostrar/Ocultar Password
@@ -81,7 +77,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 Swal.fire({ icon: 'warning', title: 'Campos incompletos', text: 'Por favor ingresa correo y contraseña.' });
                 return;
             }
-            // Ejecutar login
             await usuarioController.manejarLogin(email, pass);
         });
     }
@@ -89,8 +84,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Login Social (Google)
     if (btnGoogle) {
         btnGoogle.addEventListener('click', async () => {
-            // Reiniciamos bandera por si hubo un error previo
+            // Reiniciamos bandera para asegurar que el flujo se dispare al volver de Google
             redireccionEjecutada = false;
+            
+            // Llamamos al método actualizado del controller
             await usuarioController.manejarLoginSocial('google');
         });
     }

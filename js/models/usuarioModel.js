@@ -5,32 +5,36 @@ export const usuarioModel = {
     // SECCIÓN: AUTENTICACIÓN (AUTH)
     // ==========================================
 
-    /**
-     * Inicia sesión en Supabase Auth y obtiene el perfil de la tabla pública
-     */
-    // Reemplaza el método loginConRedSocial en usuarioModel.js
     async loginConRedSocial(proveedor) {
         try {
-            // Obtenemos el origen (http://127.0.0.1:8000 o https://geek-bolivia.github.io)
+            // --- NUEVO: LIMPIEZA PREVENTIVA ---
+            // Elimina fragmentos de tokens antiguos en la URL y limpia el storage
+            if (window.location.hash) {
+                window.history.replaceState(null, null, window.location.pathname);
+            }
+            localStorage.removeItem('supabase.auth.token');
+            sessionStorage.clear();
+            // ----------------------------------
+
             const origin = window.location.origin;
-            // Obtenemos el path (/ o /comercio/)
             let path = window.location.pathname;
 
-            // Limpieza de seguridad: Si el path termina en algo como 'administracion.html', 
-            // lo forzamos a index.html para que Supabase siempre regrese a la entrada principal.
             if (path.includes('.html')) {
                 path = path.substring(0, path.lastIndexOf('/') + 1) + 'index.html';
+            } else if (!path.endsWith('/')) {
+                path += '/index.html';
             }
 
             const urlActual = origin + path;
 
-            console.log("Intentando login. Redirección configurada a:", urlActual);
-
             const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: proveedor,
                 options: {
-                    // redirectTo DEBE coincidir exactamente con lo que pusiste en el Dashboard de Supabase
-                    redirectTo: urlActual
+                    redirectTo: urlActual,
+                    // Fuerza a Google/Facebook a mostrar la selección de cuenta siempre
+                    queryParams: {
+                        prompt: 'select_account'
+                    }
                 }
             });
 
