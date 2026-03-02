@@ -8,18 +8,22 @@ export const usuarioModel = {
     /**
      * Inicia sesión en Supabase Auth y obtiene el perfil de la tabla pública
      */
+    // Reemplaza el método loginConRedSocial en usuarioModel.js
     async loginConRedSocial(proveedor) {
         try {
+            // Detecta automáticamente si estás en localhost o en el repo de GitHub
+            const urlActual = window.location.origin + window.location.pathname;
+
             const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: proveedor,
                 options: {
-                    // Forzamos la URL de redirección para evitar localhost en producción
-                    redirectTo: window.location.origin + window.location.pathname
+                    redirectTo: urlActual
                 }
             });
             if (error) throw error;
             return { exito: true, data };
         } catch (err) {
+            console.error("Error en OAuth:", err.message);
             return { exito: false, mensaje: err.message };
         }
     },

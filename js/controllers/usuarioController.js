@@ -5,7 +5,7 @@ import { editarUsuarioModal } from '../views/components/editarUsuarioModal.js';
 import { eliminarUsuarioModal } from '../views/components/eliminarUsuarioModal.js';
 
 export const usuarioController = {
-    
+
     _estado: {
         rolActual: '',
         configActual: null
@@ -103,8 +103,14 @@ export const usuarioController = {
         sessionStorage.setItem('usuario_nombre', perfil.nombres);
         sessionStorage.setItem('usuario_id', auth.id);
 
-        const enIndex = window.location.pathname.includes('index.html') || window.location.pathname === '/';
-        if (enIndex) window.location.href = 'administracion.html';
+        // Verificación de página actual más robusta para GH Pages
+        const path = window.location.pathname;
+        const enIndex = path.endsWith('/') || path.includes('index.html');
+
+        if (enIndex) {
+            console.log("Redirigiendo a administración...");
+            window.location.href = 'administracion.html';
+        }
     },
 
     async manejarLogin(email, pass) {
