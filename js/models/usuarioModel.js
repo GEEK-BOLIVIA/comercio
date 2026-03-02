@@ -99,23 +99,29 @@ export const usuarioModel = {
     /**
      * Cierra la sesión globalmente y limpia el storage local
      */
+    // Reemplaza el método logout en usuarioModel.js
     async logout() {
         try {
-            // Forzamos el cierre de sesión en el servidor
             await supabase.auth.signOut();
 
-            // Limpiamos absolutamente todo rastro local
+            // Limpiamos storage
             sessionStorage.clear();
-            localStorage.clear(); // Supabase guarda el token aquí
+            localStorage.clear();
 
-            // IMPORTANTE: Limpiar cookies de la sesión actual
+            // Limpieza de cookies (opcional pero recomendado)
             document.cookie.split(";").forEach((c) => {
                 document.cookie = c
                     .replace(/^ +/, "")
                     .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
             });
 
-            return { exito: true };
+            // Calculamos la ruta base de forma dinámica
+            // Esto evitará el error 404 en GitHub Pages
+            const pathActual = window.location.pathname;
+            const nombreRepo = pathActual.split('/')[1]; // Captura "comercio"
+            const nuevaUrl = window.location.origin + '/' + nombreRepo + '/index.html';
+
+            return { exito: true, urlRedireccion: nuevaUrl };
         } catch (error) {
             return { exito: false, mensaje: error.message };
         }
