@@ -1,5 +1,5 @@
-const supabaseUrl = 'https://bhbbjvcoujxzqaqjqnti.supabase.co'; 
-const supabaseAnonKey = 'sb_publishable_C_OFBl6KdorQVKjnHFBUyg_DamW_LmK'; 
+const supabaseUrl = 'https://lawahiwpvioouqnwceqx.supabase.co'; 
+const supabaseAnonKey = 'sb_publishable_vyfa6HDVbb95jAelzMPehw_oylnaE0l'; 
 
 const clientInstance = supabase.createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
