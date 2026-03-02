@@ -28,27 +28,34 @@ export const usuarioController = {
     async gestionarRedireccionInicial() {
         const sesion = await usuarioModel.obtenerSesionActual();
 
-        // 1. Si no hay sesión, redirigir al login
+        // 1. Si NO hay sesión activa
         if (!sesion) {
-            const esPaginaPrivada = !window.location.pathname.includes('index.html') && window.location.pathname !== '/';
-            if (esPaginaPrivada) window.location.href = 'index.html';
+            const pathActual = window.location.pathname;
+            const esPaginaPrivada = !pathActual.includes('index.html') && pathActual !== '/' && !pathActual.endsWith('/comercio/');
+
+            if (esPaginaPrivada) {
+                // Usamos ./ para que busque el index en la carpeta actual (/comercio/)
+                window.location.href = './index.html';
+            }
             return;
         }
 
         const { auth, perfil, tipo } = sesion;
 
-        // 2. Si el acceso es denegado
+        // 2. Caso: Acceso denegado (No está en la whitelist o no tiene perfil)
         if (tipo === 'denegado' || !perfil) {
-            await usuarioModel.logout();
+            const respuestaLogout = await usuarioModel.logout();
             usuarioView.notificarError("Acceso denegado: Tu correo no ha sido autorizado.");
-            setTimeout(() => window.location.href = 'index.html', 3000);
+
+            // Redirigimos usando la URL dinámica calculada por el modelo
+            setTimeout(() => {
+                window.location.href = respuestaLogout.urlRedireccion;
+            }, 3000);
             return;
         }
 
         // 3. Caso: Usuario Nuevo (Invitado) o Perfil Incompleto
-        // Usamos el encadenamiento opcional perfil?. para evitar errores si algo falta
         if (perfil.temporal || !perfil.ci || !perfil.celular) {
-
             const nombresAuto = this._distribuirNombre(
                 auth.user_metadata?.full_name || auth.user_metadata?.name || ''
             );
@@ -59,7 +66,6 @@ export const usuarioController = {
                 apellido_materno: perfil.apellido_materno || nombresAuto.materno || '',
             };
 
-            // Detenemos cualquier otra ejecución y mostramos el modal
             const completado = await usuarioView.mostrarModalCompletarPerfil(auth.id, datosSugeridos);
 
             if (completado) {
@@ -80,36 +86,35 @@ export const usuarioController = {
 
                 if (res && res.exito) {
                     usuarioView.notificarExito("¡Bienvenido! Perfil configurado correctamente.");
-
                     sessionStorage.setItem('usuario_rol', perfil.rol);
                     sessionStorage.setItem('usuario_nombre', completado.nombres);
                     sessionStorage.setItem('usuario_id', auth.id);
 
-                    setTimeout(() => window.location.href = 'administracion.html', 1500);
+                    // Redirección relativa segura
+                    setTimeout(() => window.location.href = './administracion.html', 1500);
                 } else {
                     usuarioView.notificarError("No se pudo guardar: " + (res?.mensaje || "Error desconocido"));
-                    // No cerramos sesión aquí para permitirle reintentar el modal
                 }
             } else {
-                // Si el usuario cierra el modal sin completar (y es obligatorio)
-                await usuarioModel.logout();
-                window.location.href = 'index.html';
+                // Si cierra el modal obligatorio, logout y fuera
+                const respuestaLogout = await usuarioModel.logout();
+                window.location.href = respuestaLogout.urlRedireccion;
             }
-            return; // IMPORTANTE: Salir para no ejecutar la lógica de "Usuario recurrente"
+            return;
         }
 
-        // 4. Caso: Usuario recurrente (Ya tiene perfil completo)
+        // 4. Caso: Usuario recurrente (Perfil completo)
         sessionStorage.setItem('usuario_rol', perfil.rol);
         sessionStorage.setItem('usuario_nombre', perfil.nombres);
         sessionStorage.setItem('usuario_id', auth.id);
 
-        // Verificación de página actual más robusta para GH Pages
         const path = window.location.pathname;
         const enIndex = path.endsWith('/') || path.includes('index.html');
 
         if (enIndex) {
-            console.log("Redirigiendo a administración...");
-            window.location.href = 'administracion.html';
+            console.log("Sesión válida encontrada. Entrando al panel...");
+            // Redirección relativa segura
+            window.location.href = './administracion.html';
         }
     },
 
