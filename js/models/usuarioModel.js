@@ -11,15 +11,29 @@ export const usuarioModel = {
     // Reemplaza el método loginConRedSocial en usuarioModel.js
     async loginConRedSocial(proveedor) {
         try {
-            // Detecta automáticamente si estás en localhost o en el repo de GitHub
-            const urlActual = window.location.origin + window.location.pathname;
+            // Obtenemos el origen (http://127.0.0.1:8000 o https://geek-bolivia.github.io)
+            const origin = window.location.origin;
+            // Obtenemos el path (/ o /comercio/)
+            let path = window.location.pathname;
+
+            // Limpieza de seguridad: Si el path termina en algo como 'administracion.html', 
+            // lo forzamos a index.html para que Supabase siempre regrese a la entrada principal.
+            if (path.includes('.html')) {
+                path = path.substring(0, path.lastIndexOf('/') + 1) + 'index.html';
+            }
+
+            const urlActual = origin + path;
+
+            console.log("Intentando login. Redirección configurada a:", urlActual);
 
             const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: proveedor,
                 options: {
+                    // redirectTo DEBE coincidir exactamente con lo que pusiste en el Dashboard de Supabase
                     redirectTo: urlActual
                 }
             });
+
             if (error) throw error;
             return { exito: true, data };
         } catch (err) {
