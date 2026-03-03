@@ -293,43 +293,58 @@ document.addEventListener('DOMContentLoaded', async () => {
     /**
   * Gestiona el resaltado visual de la opción seleccionada en el sidebar
   */
+    /**
+  * Gestiona el resaltado visual de la opción seleccionada en el sidebar
+  */
     function actualizarEstadoActivo(elementoActivo) {
         if (!elementoActivo) return;
 
-        // 1. Limpiamos todos los estilos de "activo" de todos los nav-items
-        const todosLosLinks = document.querySelectorAll('.nav-item');
-        todosLosLinks.forEach(link => {
-            // Quitamos fondos y colores de texto activos (blue, indigo, emerald, etc.)
-            link.classList.remove(
+        // 1. Limpiamos ABSOLUTAMENTE TODO de todos los posibles enlaces
+        // Seleccionamos nav-items, botones de submenú y summaries
+        const todosLosElementos = document.querySelectorAll('.nav-item, summary, [id^="link-"]');
+
+        todosLosElementos.forEach(item => {
+            // Quitamos fondos de todos los colores posibles
+            item.classList.remove(
                 'bg-blue-50', 'text-blue-600',
                 'bg-indigo-50', 'text-indigo-600',
                 'bg-emerald-50', 'text-emerald-600',
                 'bg-slate-100'
             );
-            // Volvemos al color base (gris)
-            link.classList.add('text-slate-500');
+            // Reset color base
+            item.classList.add('text-slate-500');
 
-            // Si tienes iconos o texto <p> internos, también los reseteamos
-            const texto = link.querySelector('p');
-            if (texto) texto.classList.remove('text-blue-600', 'font-bold');
+            // Limpiamos los hijos (iconos y párrafos)
+            const hijos = item.querySelectorAll('span, p');
+            hijos.forEach(hijo => {
+                hijo.classList.remove('text-blue-600', 'text-indigo-600', 'text-emerald-600', 'font-bold');
+            });
         });
 
-        // 2. Aplicamos el estilo activo solo al elemento clickeado
+        // 2. Aplicamos el estilo activo al elemento clickeado
         elementoActivo.classList.remove('text-slate-500');
 
-        // Personalización por ID (Opcional: puedes hacer que cada uno tenga su color)
+        // Definimos el color según el contexto o ID
+        let colorClass = 'text-blue-600';
+        let bgClass = 'bg-blue-50';
+
         if (elementoActivo.id === 'link-admins') {
-            elementoActivo.classList.add('bg-indigo-50', 'text-indigo-600');
-        } else if (elementoActivo.id === 'link-clientes') {
-            elementoActivo.classList.add('bg-emerald-50', 'text-emerald-600');
-        } else {
-            // Por defecto para Owners, Productos y Categorías usamos Azul
-            elementoActivo.classList.add('bg-blue-50', 'text-blue-600');
+            colorClass = 'text-indigo-600';
+            bgClass = 'bg-indigo-50';
+        } else if (elementoActivo.id === 'link-clientes' || elementoActivo.id === 'link-subcategorias') {
+            colorClass = 'text-emerald-600';
+            bgClass = 'bg-emerald-50';
         }
 
-        // Opcional: poner el texto en negrita
+        // Aplicar al contenedor principal
+        elementoActivo.classList.add(bgClass, colorClass);
+
+        // Aplicar a los elementos internos para que el icono también cambie de color
         const textoActivo = elementoActivo.querySelector('p');
-        if (textoActivo) textoActivo.classList.add('font-bold');
+        const iconoActivo = elementoActivo.querySelector('span');
+
+        if (textoActivo) textoActivo.classList.add('font-bold', colorClass);
+        if (iconoActivo) iconoActivo.classList.add(colorClass);
     }
 });
 window.usuarioController = usuarioController;

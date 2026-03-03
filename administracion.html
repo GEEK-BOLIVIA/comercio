@@ -80,7 +80,8 @@
                     <details class="group px-1">
                         <summary
                             class="flex items-center justify-between rounded-lg px-3 py-2.5 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-all cursor-pointer list-none">
-                            <div onclick="event.preventDefault(); productoController.inicializar()"
+                            <div id="link-productos" class="nav-item flex items-center gap-3 flex-1"
+                                onclick="event.preventDefault(); productoController.inicializar()"
                                 class="flex items-center gap-3 flex-1">
                                 <span class="material-symbols-outlined text-[20px]">inventory_2</span>
                                 <p class="text-sm font-medium sidebar-hide">Productos</p>
@@ -106,7 +107,8 @@
                     <details class="group px-1">
                         <summary
                             class="flex items-center justify-between rounded-lg px-3 py-2.5 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-all cursor-pointer list-none">
-                            <div onclick="event.preventDefault(); categoriasController.inicializar('categorias')"
+                            <div id="link-categorias" class="nav-item flex items-center gap-3 flex-1"
+                                onclick="event.preventDefault(); categoriasController.inicializar('categorias')"
                                 class="flex items-center gap-3 flex-1">
                                 <span class="material-symbols-outlined text-[20px]">category</span>
                                 <p class="text-sm font-medium sidebar-hide">Categorías</p>
@@ -128,7 +130,8 @@
                     <details class="group px-1">
                         <summary
                             class="flex items-center justify-between rounded-lg px-3 py-2.5 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-all cursor-pointer list-none">
-                            <div onclick="event.preventDefault(); categoriasController.inicializar('subcategorias')"
+                            <div id="link-subcategorias" class="nav-item flex items-center gap-3 flex-1"
+                                onclick="event.preventDefault(); categoriasController.inicializar('subcategorias')"
                                 class="flex items-center gap-3 flex-1">
                                 <span class="material-symbols-outlined text-[20px]">account_tree</span>
                                 <p class="text-sm font-medium sidebar-hide">Subcategorías</p>
@@ -204,10 +207,37 @@
                 </div>
                 <div class="flex flex-col gap-1">
                     <p class="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 sidebar-hide">
+                        Estructura de Negocio
+                    </p>
+
+                    <details class="group px-1">
+                        <summary
+                            class="flex items-center justify-between rounded-lg px-3 py-2.5 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-all cursor-pointer list-none">
+                            <div onclick="event.preventDefault(); sucursalController.inicializar()"
+                                class="flex items-center gap-3 flex-1 cursor-pointer">
+                                <span class="material-symbols-outlined text-[20px]">store</span>
+                                <p class="text-sm font-medium sidebar-hide">Sucursales</p>
+                            </div>
+                            <span
+                                class="material-symbols-outlined text-[18px] transition-transform group-open:rotate-180 sidebar-hide">expand_more</span>
+                        </summary>
+
+                        <div class="flex flex-col gap-1 mt-1 ml-4 pl-4 border-l-2 border-slate-100 sidebar-hide">
+                            <button onclick="event.stopPropagation(); sucursalController.mostrarFormularioCrear()"
+                                class="flex items-center gap-3 rounded-lg px-3 py-1.5 text-slate-400 hover:text-blue-500 transition-all text-[10px] font-bold uppercase text-left">
+                                <span class="material-symbols-outlined text-[16px]">add_location_alt</span>
+                                Nueva Sucursal
+                            </button>
+                        </div>
+                    </details>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <p class="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 sidebar-hide">
                         Configuración
                     </p>
                     <a class="nav-item flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition-all group"
-                        href="#" data-view="views/configuracion/index.html" data-type="iframe" id="link-config-cliente">
+                        href="#" data-view="views/configuracion/index.html" data-type="iframe"
+                        onclick="event.preventDefault(); paletaColorController.inicializar()" id="link-config-cliente">
                         <span class="material-symbols-outlined text-[20px]">palette</span>
                         <p class="text-sm font-medium sidebar-hide">Página Cliente</p>
                     </a>
@@ -274,6 +304,7 @@
     <script type="module" src="js/controllers/categoriasController.js"></script>
     <script type="module" src="js/controllers/productoController.js"></script>
     <script type="module" src="js/controllers/carruselController.js"></script>
+    <script type="module" src="js/controllers/sucursalController.js"></script>
 </body>
 
 </html>

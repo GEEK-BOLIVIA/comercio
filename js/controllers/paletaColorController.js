@@ -8,8 +8,15 @@ import { paletaColorView } from '../views/paletaColorView.js';
 export const paletaColorController = {
 
     async inicializar() {
+        // 1. Cargar la estructura base de la vista (la tabla/contenedor)
+        const response = await fetch('views/configuracion/index.html'); // Ajusta la ruta
+        const htmlBase = await response.text();
+
+        // 2. Inyectar en el área de contenido principal
+        document.getElementById('content-area').innerHTML = htmlBase;
+
+        // 3. Obtener datos y renderizar los componentes dinámicos
         const paletas = await paletaColorModel.obtenerTodas();
-        // El modelo ya filtra las que tienen visible: true
         if (paletas) {
             paletaColorView.renderizarLista(paletas);
         }
@@ -17,7 +24,7 @@ export const paletaColorController = {
 
     async abrirFormularioCreacion() {
         try {
-            const response = await fetch('../paleta_colores/create.html'); 
+            const response = await fetch('../paleta_colores/create.html');
             if (!response.ok) throw new Error("No se pudo cargar create.html");
             const html = await response.text();
 
@@ -35,8 +42,8 @@ export const paletaColorController = {
     async abrirFormularioEdicion(id) {
         try {
             const paletas = await paletaColorModel.obtenerTodas();
-            const paleta = paletas.find(p => p.id === Number(id)); 
-            
+            const paleta = paletas.find(p => p.id === Number(id));
+
             if (!paleta) return console.error("Paleta no encontrada");
 
             const response = await fetch('../paleta_colores/edit.html');
@@ -59,7 +66,7 @@ export const paletaColorController = {
      */
     async handleCrearPaleta(event) {
         event.preventDefault();
-        
+
         const result = await Swal.fire({
             title: '¿Guardar nueva paleta?',
             text: "Se añadirá esta configuración a tu lista de diseños.",
@@ -75,9 +82,9 @@ export const paletaColorController = {
             const formData = new FormData(event.target);
             // Object.fromEntries tomará los "name" de tus inputs (ej: name="primary_color")
             const datosPaleta = Object.fromEntries(formData.entries());
-            
+
             datosPaleta.es_activa = false;
-            datosPaleta.visible = true; 
+            datosPaleta.visible = true;
 
             const res = await paletaColorModel.crearPaleta(datosPaleta);
             if (res.exito) {
@@ -119,7 +126,7 @@ export const paletaColorController = {
 
             // IMPORTANTE: El ID viene del input hidden name="id"
             const res = await paletaColorModel.actualizarPaleta(datos.id, datos);
-            
+
             if (res.exito) {
                 paletaColorView.cerrarModal();
                 Swal.fire({
@@ -186,7 +193,7 @@ export const paletaColorController = {
             text: "Esta acción quitará la paleta de tu lista permanentemente.",
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#EF4444', 
+            confirmButtonColor: '#EF4444',
             cancelButtonColor: '#aaa',
             confirmButtonText: 'Sí, eliminar',
             cancelButtonText: 'Cancelar'
@@ -194,7 +201,7 @@ export const paletaColorController = {
 
         if (result.isConfirmed) {
             const res = await paletaColorModel.eliminarPaleta(id);
-            
+
             if (res.exito) {
                 await Swal.fire({
                     title: '¡Eliminado!',
@@ -203,7 +210,7 @@ export const paletaColorController = {
                     timer: 1500,
                     showConfirmButton: false
                 });
-                
+
                 this.inicializar();
             } else {
                 Swal.fire('Error', 'No se pudo procesar la eliminación.', 'error');
@@ -217,6 +224,7 @@ export const paletaColorController = {
 };
 
 /** EXPOSICIÓN GLOBAL **/
+window.paletaColorController = paletaColorController; // Agrega esta línea
 window.abrirModalPaleta = () => paletaColorController.abrirFormularioCreacion();
 window.cerrarModalPaleta = () => paletaColorController.cerrarModal();
 window.handleActivarPaleta = (id) => paletaColorController.seleccionarPaleta(id);

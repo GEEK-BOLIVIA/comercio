@@ -6,62 +6,53 @@ import { supabase } from '../config/supabaseClient.js';
  */
 export const productoModel = {
 
-    /**
-     * Obtiene productos usando la VISTA especializada.
-     */
-    async listarActivos() {
+    async listarActivos(idSucursal = 1) { // Por defecto sucursal 1
         try {
             const { data, error } = await supabase
                 .from('v_productos_detallados')
                 .select('*')
-                .eq('visible', true)
+                // Ahora validamos ambos niveles de visibilidad
+                .eq('visible_global', true)
+                .eq('visible_sucursal', true)
+                .eq('id_sucursal', idSucursal) // FILTRO CRÍTICO
                 .order('producto_id', { ascending: false });
 
             if (error) throw error;
 
-            const productosUnicos = [];
-            const idsProcesados = new Set();
+            // Ya no necesitamos filtrar duplicados con Set() porque 
+            // al filtrar por id_sucursal, cada producto sale solo una vez.
+            return data.map(p => ({
+                ...p,
+                id: p.producto_id,
+                // Ajustamos los nombres según las columnas de tu vista
+                nombre: p.nombre,
+                nombre_categoria: p.categoria_padre_nombre
+                    ? `${p.categoria_padre_nombre} > ${p.categoria_nombre}`
+                    : (p.categoria_nombre || 'Sin Categoría')
+            }));
 
-            data.forEach(p => {
-                if (!idsProcesados.has(p.producto_id)) {
-                    idsProcesados.add(p.producto_id);
-
-                    productosUnicos.push({
-                        ...p,
-                        id: p.producto_id,
-                        nombre: p.producto_nombre,
-                        nombre_categoria: p.categoria_padre_nombre
-                            ? `${p.categoria_padre_nombre} > ${p.categoria_nombre}`
-                            : (p.categoria_nombre || 'Sin Categoría')
-                    });
-                }
-            });
-
-            return productosUnicos;
         } catch (err) {
             console.error('Error en productoModel.listarActivos:', err.message);
             return [];
         }
     },
-
-    /**
-     * Obtiene un producto por ID usando la vista
-     */
-    async obtenerPorId(id) {
+    async obtenerPorId(id, idSucursal = 1) {
         try {
             const { data, error } = await supabase
                 .from('v_productos_detallados')
                 .select('*')
                 .eq('producto_id', id)
-                .limit(1); // Cambiamos .single() por .limit(1)
+                .eq('id_sucursal', idSucursal) // Trae el precio de esta tienda
+                .limit(1);
 
             if (error) throw error;
-
-            // Verificamos si hay datos y devolvemos el primero
             if (!data || data.length === 0) return null;
 
             const producto = data[0];
-            return { ...producto, id: producto.producto_id };
+            return {
+                ...producto,
+                id: producto.producto_id
+            };
         } catch (err) {
             console.error(`Error al obtener producto ${id}:`, err.message);
             return null;
