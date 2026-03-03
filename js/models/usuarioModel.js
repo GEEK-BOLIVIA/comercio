@@ -63,54 +63,52 @@ export const usuarioModel = {
      */
     async obtenerSesionActual() {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return null;
+            const { data: { user }, error: authError } = await supabase.auth.getUser();
+            if (authError || !user) return null;
 
-            // 1. Intentar obtener el perfil real de la tabla 'usuario'
-            const { data: perfil, error } = await supabase
+            const emailLimpio = user.email.toLowerCase().trim();
+
+            // 1. Obtener el perfil
+            const { data: perfil, error: dbError } = await supabase
                 .from('usuario')
                 .select('*')
-                .eq('correo_electronico', user.email)
-                .maybeSingle(); // maybeSingle no lanza error si no encuentra nada
+                .eq('correo_electronico', emailLimpio)
+                .maybeSingle();
+
+            if (dbError) {
+                console.error("Error en DB:", dbError.message);
+                // Si el error persiste, es probable que necesites desactivar el RLS temporalmente para probar
+            }
 
             if (perfil) {
-                // VÍNCULO AUTOMÁTICO: Si el ID cambió (primera vez tras invitación)
-                if (perfil.id !== user.id) {
-                    await supabase.from('usuario').update({ id: user.id }).eq('correo_electronico', user.email);
-                    perfil.id = user.id;
-                }
+                // Retornamos el perfil tal cual está en la base de datos
                 return { auth: user, perfil: perfil, tipo: 'existente' };
             }
 
-            // 2. Si no hay perfil, verificar si está en la 'whitelist'
-            const { data: invitacion, error: errWhite } = await supabase
+            // 2. Si no hay perfil, verificar whitelist
+            const { data: invitacion } = await supabase
                 .from('whitelist')
                 .select('*')
-                .eq('correo_electronico', user.email)
+                .eq('correo_electronico', emailLimpio)
                 .maybeSingle();
 
             if (invitacion) {
                 return {
                     auth: user,
                     perfil: {
-                        correo_electronico: user.email,
+                        correo_electronico: emailLimpio,
                         rol: invitacion.rol,
                         temporal: true,
-                        nombres: '',           // Inicializamos vacíos
-                        apellido_paterno: '',
-                        apellido_materno: '',
-                        ci: '',
-                        celular: ''
+                        nombres: user.user_metadata?.full_name || ''
                     },
                     tipo: 'invitado'
                 };
             }
 
-            // 3. Si no está en ninguna parte, no tiene acceso
             return { auth: user, perfil: null, tipo: 'denegado' };
 
         } catch (err) {
-            console.error("Error en obtenerSesionActual:", err);
+            console.error("Error crítico:", err);
             return null;
         }
     },
