@@ -3,6 +3,8 @@ import { productoView } from '../views/productoView.js';
 import { categoriasModel } from '../models/categoriasModel.js';
 import { productoCategoriaModel } from '../models/productoCategoriaModel.js';
 import { galeriaProductoModel } from '../models/galeriaProductoModel.js';
+import { sucursalModel } from '../models/sucursalModel.js';
+import { sucursalProductoModel } from '../models/sucursalProductoModel.js';
 import { productManager } from '../modals/createProduct.js';
 import { supabase } from '../config/supabaseClient.js';
 import { configuracionColumnasController } from '../controllers/configuracionColumnasController.js';
@@ -151,21 +153,39 @@ export const productoController = {
 
     async refrescarVista() {
         try {
-            const [productos, categorias] = await Promise.all([
-                productoModel.listarActivos(),
+            const [sucursales, categorias] = await Promise.all([
+                sucursalModel.getAll(),
                 categoriasModel.obtenerTodas()
             ]);
 
-            this._todasLasCategorias = categorias;
-            window.productosRaw = productos;
-            window.productManager = productManager;
-            productoView.render(productos, categorias);
+            const sucursalId = productoView._estado.sucursalSeleccionada;
+            let productosRaw;
+
+            if (sucursalId === 'todas') {
+                productosRaw = await productoModel.listarTodoDetallado();
+            } else {
+                productosRaw = await productoModel.listarActivos(sucursalId);
+            }
+
+            const productosNormalizados = productosRaw.map(p => ({
+                ...p,
+                id: p.id || p.producto_id,
+                nombre: p.nombre || p.producto_nombre || 'Sin nombre',
+                nombre_categoria: p.nombre_categoria || p.categoria_nombre || 'General'
+            }));
+
+            window.productosRaw = productosNormalizados;
+            productoView.render(productosNormalizados, categorias, sucursales);
+
+            Swal.close(); // <-- AGREGAR: cierra el SweetAlert de sucursal si estaba abierto
+
         } catch (error) {
-            console.error("Error en refrescarVista:", error);
-            productoView.notificarError?.('Error al refrescar los datos.');
+            console.error('Error en refrescarVista:', error);
+            Swal.close(); // <-- AGREGAR también en el catch
+            productoView.notificarError?.('Error al cargar los productos.');
         }
     },
-
+    
     async toggleEstado(id, campo, nuevoEstado) {
         productoView.mostrarCargando?.('Actualizando producto...');
         try {
@@ -179,35 +199,23 @@ export const productoController = {
             this.refrescarVista();
         }
     },
-    /**
- * Actualización masiva para productos filtrados
- */
+
     async toggleMasivoFiltrado(campo, nuevoEstado, ids) {
-        if (!ids || ids.length === 0) return;
-
-        productoView.mostrarCargando?.(`Actualizando ${ids.length} productos...`);
         try {
-            // Ejecutamos todas las actualizaciones en paralelo para mayor velocidad
-            const promesas = ids.map(id =>
-                productoModel.actualizar(id, { [campo]: nuevoEstado })
-            );
+            productoView.mostrarCargando?.('Actualizando productos seleccionados...');
 
-            const resultados = await Promise.all(promesas);
-            const errores = resultados.filter(r => !r.exito);
+            // CAMBIO: De productoService a productoModel.actualizarVarios (que ya tienes en tu model)
+            const resultado = await productoModel.actualizarVarios(ids, { [campo]: nuevoEstado });
 
-            if (errores.length === 0) {
+            if (resultado.exito) {
                 await this.refrescarVista();
-                productoView.notificarExito?.(`Se actualizaron ${ids.length} productos.`);
-            } else {
-                throw new Error(`Hubo problemas con ${errores.length} productos.`);
+                productoView.notificarExito?.(`${ids.length} productos actualizados correctamente.`);
             }
         } catch (error) {
-            console.error("Error masivo:", error);
-            productoView.notificarError?.('No se pudo completar la actualización masiva.');
-            this.refrescarVista();
+            console.error(error);
+            productoView.notificarError?.('Error en la actualización masiva.');
         }
     },
-
     /**
      * CREACIÓN DE PRODUCTO
      */
@@ -352,62 +360,27 @@ export const productoController = {
         }
     },
     async eliminar(id) {
-        try {
-            productoView.mostrarCargando?.('Obteniendo información del producto...');
+        // Usamos el SweetAlert personalizado que ya tienes
+        const confirmacion = await Swal.fire({
+            title: '¿ELIMINAR PRODUCTO?',
+            text: "Esta acción borrará el producto y su stock en todas las sucursales. No se puede revertir.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'SÍ, ELIMINAR TODO',
+            cancelButtonText: 'CANCELAR',
+            confirmButtonColor: '#ef4444',
+            reverseButtons: true,
+            customClass: { popup: 'rounded-[32px]' }
+        });
 
-            // 1. Obtener los datos del producto para mostrar en la confirmación
-            const [producto, idsCategorias, todasLasCategorias] = await Promise.all([
-                productoModel.obtenerPorId(id),
-                productoCategoriaModel.obtenerCategoriasPorProducto(id),
-                categoriasModel.obtenerTodas()
-            ]);
-
-            if (!producto) throw new Error('No se encontró el producto.');
-
-            // 2. Enriquecer categorías para la vista resumida
-            const categoriasEnriquecidas = idsCategorias.map(idVinculado => {
-                const catInfo = todasLasCategorias.find(c => c.id === idVinculado);
-                return catInfo ? catInfo : { nombre: 'Categoría ' + idVinculado };
-            });
-
-            // 3. Renderizar la vista de eliminación en el contenedor principal o un modal
-            const contenedorPrincipal = document.getElementById('content-area');
-
-            // Cerramos cualquier alerta de carga previa
-            Swal.close();
-
-            contenedorPrincipal.innerHTML = deleteProductoView.render({
-                producto: producto,
-                categorias: categoriasEnriquecidas
-            });
-
-            // 4. Inicializar los eventos de los botones (Confirmar / Cancelar)
-            deleteProductoView.initEventListeners(
-                // Acción si confirma:
-                async () => {
-                    try {
-                        productoView.mostrarCargando?.('Eliminando permanentemente...');
-                        const resultado = await productoModel.eliminar(id);
-
-                        if (resultado.exito) {
-                            await this.refrescarVista();
-                            productoView.notificarExito?.('El producto ha sido eliminado correctamente.');
-                        } else {
-                            throw new Error(resultado.mensaje);
-                        }
-                    } catch (err) {
-                        productoView.notificarError?.(err.message || 'Error al eliminar.');
-                    }
-                },
-                // Acción si cancela:
-                () => {
-                    this.refrescarVista(); // Simplemente regresa al listado
-                }
-            );
-
-        } catch (error) {
-            console.error("Error al preparar eliminación:", error);
-            productoView.notificarError?.('No se pudo cargar la confirmación de eliminación.');
+        if (confirmacion.isConfirmed) {
+            try {
+                await productoService.eliminarProductoCompleto(id);
+                await this.refrescarVista();
+                productoView.notificarExito('Producto eliminado del catálogo global.');
+            } catch (error) {
+                productoView.notificarError('Error al intentar eliminar el producto.');
+            }
         }
     }
 };

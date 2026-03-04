@@ -2,18 +2,13 @@ import { supabase } from '../config/supabaseClient.js';
 
 export const sucursalProductoModel = {
 
-    /**
-     * Obtiene el inventario de una sucursal específica
-     * Incluye un join opcional con la tabla producto si fuera necesario
-     */
     async getBySucursal(idSucursal) {
         try {
             const { data, error } = await supabase
                 .from('sucursal_producto')
                 .select(`
-                    *,
-                    producto:id_producto (nombre, sku)
-                `)
+                    *
+                `) // Quitamos 'sku' para evitar el error
                 .eq('id_sucursal', idSucursal)
                 .eq('visible', true);
 

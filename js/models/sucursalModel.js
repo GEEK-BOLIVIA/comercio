@@ -79,5 +79,17 @@ export const sucursalModel = {
             // Re-lanzamos el error para que el Controller pueda notificar al usuario
             throw error;
         }
+    },
+    async delete(id) {
+        const { data, error } = await supabase
+            .from('sucursal')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            throw new Error(`Error al eliminar: ${error.message}`);
+        }
+
+        return data;
     }
 };

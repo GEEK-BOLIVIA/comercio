@@ -14,18 +14,18 @@ export const sucursalView = {
      * NOTIFICACIONES
      */
     notificarExito(mensaje) {
+        // Si había un loading abierto, esto lo limpia y muestra el éxito
         Swal.fire({
             icon: 'success',
             title: '<span class="text-slate-800 font-black uppercase text-sm">¡Operación Exitosa!</span>',
             text: mensaje,
-            timer: 4500, // Un poco más de tiempo para leer
+            timer: 2500,
             showConfirmButton: false,
             customClass: {
                 popup: 'rounded-[32px] border-none shadow-xl'
             }
         });
     },
-
     notificarError(mensaje) {
         Swal.fire({
             icon: 'error',
@@ -48,6 +48,146 @@ export const sucursalView = {
         });
     },
 
+    /**
+ * MODAL DETALLE PROFESIONAL (Horizontal)
+ * Retorna true si el usuario presiona "Editar", false si cierra.
+ */
+    async mostrarDetalle(sucursal) {
+        const { isConfirmed } = await Swal.fire({
+            title: null,
+            html: `
+        <div class="flex flex-col md:flex-row gap-6 p-2 text-left">
+            <div class="md:w-1/3 flex flex-col items-center justify-center bg-slate-50 rounded-[24px] p-6 border border-slate-100">
+                <div class="w-20 h-20 rounded-[24px] bg-white text-indigo-600 flex items-center justify-center shadow-sm mb-4 border border-slate-100">
+                    <span class="material-symbols-outlined" style="font-size: 40px;">storefront</span>
+                </div>
+                <div class="text-center">
+                    <span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Activa
+                    </span>
+                </div>
+            </div>
+
+            <div class="md:w-2/3 space-y-4">
+                <div>
+                    <p class="text-[10px] text-slate-400 uppercase font-black tracking-[2px] mb-1">Información General</p>
+                    <h2 class="text-slate-800 text-2xl font-black uppercase tracking-tight leading-tight">
+                        ${sucursal.nombre}
+                    </h2>
+                </div>
+
+                <div class="grid grid-cols-1 gap-3">
+                    <div class="flex items-start gap-3">
+                        <div class="mt-1 w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                            <span class="material-symbols-outlined text-slate-500 text-lg">location_on</span>
+                        </div>
+                        <div>
+                            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Ubicación</p>
+                            <p class="text-sm text-slate-600 font-medium">${sucursal.direccion || 'Sin dirección'}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start gap-3">
+                        <div class="mt-1 w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                            <span class="material-symbols-outlined text-indigo-500 text-lg">inventory_2</span>
+                        </div>
+                        <div>
+                            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Capacidad de Stock</p>
+                            <p class="text-sm text-slate-600 font-medium">
+                                <span class="text-indigo-600 font-bold">${sucursal.total_productos || 0}</span> Productos registrados
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start gap-3">
+                        <div class="mt-1 w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+                            <span class="material-symbols-outlined text-amber-500 text-lg">verified_user</span>
+                        </div>
+                        <div>
+                            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Tipo de Sede</p>
+                            <p class="text-sm text-slate-600 font-medium">Punto de Venta Autorizado</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>`,
+            showCancelButton: true,
+            confirmButtonText: `
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm">edit</span> Editar Sucursal
+            </div>`,
+            cancelButtonText: 'Cerrar',
+            buttonsStyling: false,
+            customClass: {
+                popup: 'rounded-[32px] border-none shadow-2xl w-[95%] max-w-2xl p-6',
+                confirmButton: 'bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all mr-3 shadow-lg shadow-indigo-200',
+                cancelButton: 'bg-slate-100 hover:bg-slate-200 text-slate-500 px-8 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all'
+            }
+        });
+
+        return isConfirmed; // IMPORTANTE: Retornamos la decisión al Controller
+    },
+    async mostrarConfirmacionEliminar(sucursal) {
+        const { isConfirmed } = await Swal.fire({
+            title: null,
+            html: `
+        <div class="flex flex-col md:flex-row gap-6 p-2 text-left">
+            <div class="md:w-1/3 flex flex-col items-center justify-center bg-red-50 rounded-[24px] p-6 border border-red-100">
+                <div class="w-20 h-20 rounded-[24px] bg-white text-red-600 flex items-center justify-center shadow-sm mb-4 border border-red-100">
+                    <span class="material-symbols-outlined" style="font-size: 40px;">warning</span>
+                </div>
+                <div class="text-center">
+                    <span class="px-3 py-1 rounded-full bg-red-100 text-red-700 text-[10px] font-black uppercase tracking-wider">
+                        Acción Irreversible
+                    </span>
+                </div>
+            </div>
+
+            <div class="md:w-2/3 space-y-4">
+                <div>
+                    <p class="text-[10px] text-red-400 uppercase font-black tracking-[2px] mb-1">Confirmar Eliminación</p>
+                    <h2 class="text-slate-800 text-2xl font-black uppercase tracking-tight leading-tight">
+                        ${sucursal.nombre}
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-2 font-medium leading-relaxed">
+                        Se borrará la sucursal y se perderá el vínculo con su inventario.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 gap-2">
+                    <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <span class="material-symbols-outlined text-slate-400 text-lg">location_on</span>
+                        <p class="text-xs text-slate-600 font-medium truncate">${sucursal.direccion || 'Sin dirección'}</p>
+                    </div>
+
+                    <div class="flex items-center gap-3 bg-red-50/50 p-3 rounded-xl border border-red-100/50">
+                        <span class="material-symbols-outlined text-red-500 text-lg">inventory_2</span>
+                        <div>
+                            <p class="text-[9px] font-black text-red-400 uppercase tracking-widest leading-none mb-1">Stock Afectado</p>
+                            <p class="text-xs text-slate-700 font-bold">
+                                ${sucursal.total_productos || 0} Productos vinculados
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>`,
+            showCancelButton: true,
+            confirmButtonText: `
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm">delete_forever</span> Eliminar Ahora
+            </div>`,
+            cancelButtonText: 'Cancelar',
+            buttonsStyling: false,
+            customClass: {
+                popup: 'rounded-[32px] border-none shadow-2xl w-[95%] max-w-2xl p-6',
+                confirmButton: 'bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all mr-3 shadow-lg shadow-red-200',
+                cancelButton: 'bg-slate-100 hover:bg-slate-200 text-slate-500 px-8 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all'
+            }
+        });
+
+        return isConfirmed;
+    },
     /**
      * RENDER PRINCIPAL
      */
@@ -182,10 +322,17 @@ export const sucursalView = {
     },
 
     _ordenarDatos(datos) {
+        // Hacemos una copia para no mutar el original por accidente
         return [...datos].sort((a, b) => {
-            const valA = a.nombre.toLowerCase();
-            const valB = b.nombre.toLowerCase();
-            return this._estado.orden === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            // Manejamos posibles valores nulos o indefinidos
+            const valA = (a.nombre || "").toLowerCase();
+            const valB = (b.nombre || "").toLowerCase();
+
+            if (this._estado.orden === 'asc') {
+                return valA.localeCompare(valB, undefined, { sensitivity: 'base' });
+            } else {
+                return valB.localeCompare(valA, undefined, { sensitivity: 'base' });
+            }
         });
     },
 
@@ -261,7 +408,7 @@ export const sucursalView = {
             </div>
         `,
             showCancelButton: true,
-            confirmButtonText: esEdicion ? 'Actualizar Sucursal' : 'Registrar Sucursal',
+            confirmButtonText: esEdicion ? 'Guardar Cambios' : 'Registrar Sucursal',
             cancelButtonText: 'Cancelar',
             confirmButtonColor: '#4f46e5',
             customClass: {

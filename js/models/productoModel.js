@@ -229,5 +229,28 @@ export const productoModel = {
             console.error('Error buscando productos:', err.message);
             return [];
         }
-    }
+    },
+    async listarTodoDetallado() {
+        try {
+            const { data, error } = await supabase
+                .from('v_productos_detallados')
+                .select('*')
+                .order('producto_id', { ascending: false });
+
+            if (error) throw error;
+
+            return data.map(p => ({
+                ...p,
+                id: p.producto_id,
+                nombre: p.nombre,
+                // Mapeo consistente con tu listarActivos
+                nombre_categoria: p.categoria_padre_nombre
+                    ? `${p.categoria_padre_nombre} > ${p.categoria_nombre}`
+                    : (p.categoria_nombre || 'Sin Categoría')
+            }));
+        } catch (err) {
+            console.error('Error en listarTodoDetallado:', err.message);
+            return [];
+        }
+    },
 };
