@@ -1,9 +1,5 @@
 import { supabase } from '../config/supabaseClient.js';
 
-/**
- * Producto Model - Nexus Admin Suite
- * Versión corregida para Mapeo de Switches y Soporte de Multimedia
- */
 export const productoModel = {
 
     async listarActivos(idSucursal = 1) { // Por defecto sucursal 1
@@ -36,84 +32,33 @@ export const productoModel = {
             return [];
         }
     },
-    async obtenerPorId(id, idSucursal = 1) {
+    async obtenerPorId(id) {
         try {
             const { data, error } = await supabase
-                .from('v_productos_detallados')
+                .from('producto')
                 .select('*')
-                .eq('producto_id', id)
-                .eq('id_sucursal', idSucursal) // Trae el precio de esta tienda
+                .eq('id', id)
                 .limit(1);
 
             if (error) throw error;
             if (!data || data.length === 0) return null;
 
-            const producto = data[0];
-            return {
-                ...producto,
-                id: producto.producto_id
-            };
+            return { ...data[0], id: data[0].id };
         } catch (err) {
             console.error(`Error al obtener producto ${id}:`, err.message);
             return null;
         }
     },
-    // productoModel.js -> Función actualizar corregida
-
-    async actualizar(id, cambios) {
-        try {
-            // Construimos el payload asegurando compatibilidad de nombres
-            const datosLimpios = {
-                nombre: cambios.nombre || cambios.producto_nombre,
-                descripcion: cambios.descripcion,
-                precio: cambios.precio !== undefined ? parseFloat(cambios.precio) : undefined,
-                stock: cambios.stock !== undefined ? parseInt(cambios.stock) : undefined,
-
-                // CORRECCIÓN AQUÍ: Acepta tanto 'portada' como 'imagen_url'
-                imagen_url: cambios.imagen_url || cambios.portada,
-
-                mostrar_precio: cambios.mostrar_precio !== undefined ? cambios.mostrar_precio :
-                    (cambios.price_visible !== undefined ? cambios.price_visible : undefined),
-
-                habilitar_whatsapp: cambios.habilitar_whatsapp !== undefined ? cambios.habilitar_whatsapp :
-                    (cambios.ws_active !== undefined ? cambios.ws_active : undefined)
-            };
-
-            // Limpiar undefined para no sobrescribir con nulos accidentalmente
-            Object.keys(datosLimpios).forEach(key => {
-                if (datosLimpios[key] === undefined) delete datosLimpios[key];
-            });
-
-
-            const { data, error } = await supabase
-                .from('producto')
-                .update(datosLimpios)
-                .eq('id', id)
-                .select();
-
-            if (error) throw error;
-            return { exito: true, data: data[0] };
-        } catch (err) {
-            console.error('Error al actualizar producto:', err.message);
-            return { exito: false, mensaje: err.message };
-        }
-    },
-    /**
-     * Crea un nuevo registro (Tabla base: producto)
-     * CORREGIDO: Mapeo de campos iniciales
-     */
     async crear(datos) {
         try {
             const payload = {
                 nombre: datos.nombre ? datos.nombre.trim() : 'Sin Nombre',
                 descripcion: datos.descripcion || '',
                 imagen_url: datos.portada || '',
-                precio: parseFloat(datos.precio) || 0,
-                stock: parseInt(datos.stock) || 0,
                 visible: true,
-                // Mapeo de nombres desde el componente
                 mostrar_precio: datos.price_visible == 1 || datos.price_visible === true,
                 habilitar_whatsapp: datos.ws_active == 1 || datos.ws_active === true
+                // ← precio y stock eliminados, van en sucursal_producto
             };
 
             const { data, error } = await supabase
@@ -129,6 +74,36 @@ export const productoModel = {
         }
     },
 
+    async actualizar(id, cambios) {
+        try {
+            const datosLimpios = {
+                nombre: cambios.nombre || cambios.producto_nombre,
+                descripcion: cambios.descripcion,
+                imagen_url: cambios.imagen_url || cambios.portada,
+                mostrar_precio: cambios.mostrar_precio !== undefined ? cambios.mostrar_precio
+                    : (cambios.price_visible !== undefined ? cambios.price_visible : undefined),
+                habilitar_whatsapp: cambios.habilitar_whatsapp !== undefined ? cambios.habilitar_whatsapp
+                    : (cambios.ws_active !== undefined ? cambios.ws_active : undefined)
+                // ← precio y stock eliminados
+            };
+
+            Object.keys(datosLimpios).forEach(key => {
+                if (datosLimpios[key] === undefined) delete datosLimpios[key];
+            });
+
+            const { data, error } = await supabase
+                .from('producto')
+                .update(datosLimpios)
+                .eq('id', id)
+                .select();
+
+            if (error) throw error;
+            return { exito: true, data: data[0] };
+        } catch (err) {
+            console.error('Error al actualizar producto:', err.message);
+            return { exito: false, mensaje: err.message };
+        }
+    },
     /**
      * Víncula producto con categoría
      */
@@ -233,7 +208,7 @@ export const productoModel = {
     async listarTodoDetallado() {
         try {
             const { data, error } = await supabase
-                .from('v_productos_detallados')
+                .from('v_productos_resumen')  // ← nueva vista
                 .select('*')
                 .order('producto_id', { ascending: false });
 
@@ -243,14 +218,12 @@ export const productoModel = {
                 ...p,
                 id: p.producto_id,
                 nombre: p.nombre,
-                // Mapeo consistente con tu listarActivos
-                nombre_categoria: p.categoria_padre_nombre
-                    ? `${p.categoria_padre_nombre} > ${p.categoria_nombre}`
-                    : (p.categoria_nombre || 'Sin Categoría')
+                nombre_categoria: p.categoria_nombre || 'Sin Categoría',
+                // precio_rango disponible para mostrar en tabla si lo necesitas
             }));
         } catch (err) {
             console.error('Error en listarTodoDetallado:', err.message);
             return [];
         }
-    },
+    }
 };

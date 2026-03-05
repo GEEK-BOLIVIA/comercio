@@ -185,7 +185,7 @@ export const productoController = {
             productoView.notificarError?.('Error al cargar los productos.');
         }
     },
-    
+
     async toggleEstado(id, campo, nuevoEstado) {
         productoView.mostrarCargando?.('Actualizando producto...');
         try {
@@ -221,41 +221,51 @@ export const productoController = {
      */
     async mostrarFormularioCrear() {
         try {
-            const categorias = await categoriasModel.obtenerTodas();
-            const datosForm = await productManager.start('content-area', categorias);
+            // Carga paralela de lo necesario
+            const [categorias, sucursales] = await Promise.all([
+                categoriasModel.obtenerTodas(),
+                sucursalModel.getAll()
+            ]);
+
+            const datosForm = await productManager.start('content-area', categorias, {}, sucursales);
 
             if (datosForm) {
                 productoView.mostrarCargando?.('Guardando producto...');
 
-                // 1. Procesar Portada
-                let portadaUrl = 'https://via.placeholder.com/400';
+                // 1. Procesar portada
+                let portadaUrl = '';
                 if (datosForm.portada instanceof File) {
                     portadaUrl = await this._uploadToSupabase(datosForm.portada, 'portadas', datosForm.nombre);
                 } else if (typeof datosForm.portada === 'string' && datosForm.portada) {
                     portadaUrl = datosForm.portada;
                 }
 
-                // 2. Crear Producto Base
+                // 2. Crear producto base (sin precio ni stock — ahora van por sucursal)
                 const resultado = await productoModel.crear({
-                    ...datosForm,
+                    nombre: datosForm.nombre,
+                    descripcion: datosForm.descripcion,
+                    ws_active: datosForm.ws_active,
+                    price_visible: datosForm.price_visible,
                     portada: portadaUrl
                 });
 
                 if (resultado.exito) {
                     const nuevoId = resultado.data.id;
 
-                    // 3. Procesar Multimedia de Galería (URLs limpias)
+                    // 3. Procesar galería multimedia
                     const itemsMultimedia = await this._procesarGaleria(datosForm.galeria, datosForm.nombre);
 
                     const promesas = [];
-                    const listaCategorias = datosForm.categoriasIds || [];
 
-                    if (listaCategorias.length > 0) {
-                        promesas.push(productoCategoriaModel.vincularMultiple(nuevoId, listaCategorias));
+                    if ((datosForm.categoriasIds || []).length > 0) {
+                        promesas.push(productoCategoriaModel.vincularMultiple(nuevoId, datosForm.categoriasIds));
                     }
                     if (itemsMultimedia.length > 0) {
                         promesas.push(galeriaProductoModel.createLote(nuevoId, itemsMultimedia));
                     }
+
+                    // 4. Sincronizar sucursales — precio y stock por sede
+                    promesas.push(sucursalProductoModel.sincronizar(nuevoId, datosForm.sucursales));
 
                     await Promise.all(promesas);
                     await this.refrescarVista();
@@ -270,84 +280,76 @@ export const productoController = {
         }
     },
 
-    /**
-      * EDICIÓN DE PRODUCTO COMPLETA
-      */
     async mostrarFormularioEditar(id) {
         try {
-            const [producto, categorias, categoriasVinculadas, galeriaActual] = await Promise.all([
+            // Carga paralela incluyendo sucursales disponibles y las del producto
+            const [producto, categorias, categoriasVinculadas, galeriaActual, sucursales, sucursalesPrevias] = await Promise.all([
                 productoModel.obtenerPorId(id),
                 categoriasModel.obtenerTodas(),
                 productoCategoriaModel.obtenerCategoriasPorProducto(id),
-                galeriaProductoModel.getByProducto(id)
+                galeriaProductoModel.getByProducto(id),
+                sucursalModel.getAll(),
+                sucursalProductoModel.getByProducto(id) // [{ id_sucursal, precio, stock, visible }]
             ]);
 
-            if (!producto) {
-                console.error("LOG ERROR: Producto no encontrado en DB");
-                throw new Error('Producto no encontrado');
-            }
+            if (!producto) throw new Error('Producto no encontrado');
 
             const productoParaEdicion = {
                 id: producto.id,
                 nombre: producto.producto_nombre || producto.nombre || '',
-                precio: producto.precio || 0,
-                stock: producto.stock || 0,
                 descripcion: producto.descripcion || '',
                 ws_active: producto.habilitar_whatsapp === true,
                 price_visible: producto.mostrar_precio === true,
                 portada: producto.imagen_url || '',
                 categoriasIds: categoriasVinculadas || [],
-                galeria: galeriaActual || []
+                galeria: galeriaActual || [],
+                sucursales: sucursalesPrevias || []  // ← datos previos de sucursal_producto
             };
 
-            // Abrir modal y esperar datos editados
-            const datosEditados = await productManager.start('content-area', categorias, productoParaEdicion);
-
+            const datosEditados = await productManager.start(
+                'content-area',
+                categorias,
+                productoParaEdicion,
+                sucursales  // ← lista completa de sucursales disponibles
+            );
 
             if (datosEditados) {
                 productoView.mostrarCargando?.('Actualizando producto...');
 
-                // --- 1. MANEJO DE PORTADA (CORREGIDO) ---
+                // 1. Portada
                 let portadaFinal = producto.imagen_url;
-
-                // Verificamos si la portada es un archivo nuevo (objeto con propiedad .data que es File)
-                // O si es directamente un File
                 const archivoPortada = datosEditados.portada?.data || datosEditados.portada;
-
                 if (archivoPortada instanceof File) {
                     portadaFinal = await this._uploadToSupabase(archivoPortada, 'portadas', datosEditados.nombre);
                 } else if (typeof datosEditados.portada === 'string') {
-                    // Si es un string, es una URL vinculada
                     portadaFinal = datosEditados.portada;
                 }
 
-                // --- 2. PREPARAR PAYLOAD (CORREGIDO PARA EL MODELO) ---
+                // 2. Payload base — precio y stock ya NO van aquí
                 const updatePayload = {
-                    nombre: datosEditados.nombre.trim(), // El modelo espera 'nombre'
-                    precio: parseFloat(datosEditados.precio),
-                    stock: parseInt(datosEditados.stock),
+                    nombre: datosEditados.nombre.trim(),
                     descripcion: datosEditados.descripcion.trim(),
                     ws_active: datosEditados.ws_active,
                     price_visible: datosEditados.price_visible,
-                    portada: portadaFinal // El modelo mapeará esto a imagen_url
+                    portada: portadaFinal
                 };
 
                 const res = await productoModel.actualizar(id, updatePayload);
 
                 if (res.exito) {
-                    // 3. Procesar Galería
+                    // 3. Galería
                     const nuevaGaleria = await this._procesarGaleria(datosEditados.galeria, datosEditados.nombre);
 
-                    // 4. Sincronización de relaciones
-                    await Promise.all([
-                        productoCategoriaModel.actualizarRelaciones(id, datosEditados.categoriasIds),
-                        galeriaProductoModel.limpiarGaleria(id)
-                    ]);
+                    // En lugar del Promise.all, ejecutar secuencialmente
+                    await productoCategoriaModel.actualizarRelaciones(id, datosEditados.categoriasIds);
+                    await galeriaProductoModel.limpiarGaleria(id);
+                    await sucursalProductoModel.sincronizar(id, datosEditados.sucursales);
 
-                    // Guardar el nuevo lote de la galería
+
                     if (nuevaGaleria.length > 0) {
                         await galeriaProductoModel.createLote(id, nuevaGaleria);
                     }
+
                     await this.refrescarVista();
                     productoView.notificarExito?.('¡Producto actualizado con éxito!');
                 } else {
@@ -355,15 +357,14 @@ export const productoController = {
                 }
             }
         } catch (error) {
-            console.error("LOG FINAL ERROR EN EDICIÓN:", error);
+            console.error('LOG FINAL ERROR EN EDICIÓN:', error);
             productoView.notificarError?.('No se pudieron guardar los cambios: ' + error.message);
         }
     },
     async eliminar(id) {
-        // Usamos el SweetAlert personalizado que ya tienes
         const confirmacion = await Swal.fire({
             title: '¿ELIMINAR PRODUCTO?',
-            text: "Esta acción borrará el producto y su stock en todas las sucursales. No se puede revertir.",
+            text: 'Esta acción borrará el producto y su stock en todas las sucursales. No se puede revertir.',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonText: 'SÍ, ELIMINAR TODO',
@@ -375,9 +376,16 @@ export const productoController = {
 
         if (confirmacion.isConfirmed) {
             try {
-                await productoService.eliminarProductoCompleto(id);
-                await this.refrescarVista();
-                productoView.notificarExito('Producto eliminado del catálogo global.');
+                // Las sucursales se eliminan en cascada por FK con ON DELETE CASCADE
+                // Solo necesitamos hacer soft delete del producto base
+                const resultado = await productoModel.eliminar(id);
+
+                if (resultado.exito) {
+                    await this.refrescarVista();
+                    productoView.notificarExito('Producto eliminado del catálogo global.');
+                } else {
+                    throw new Error(resultado.mensaje);
+                }
             } catch (error) {
                 productoView.notificarError('Error al intentar eliminar el producto.');
             }
