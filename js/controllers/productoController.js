@@ -98,23 +98,21 @@ export const productoController = {
         try {
             productoView.mostrarCargando?.('Obteniendo información...');
 
-            // 1. Carga paralela de toda la data necesaria
-            const [producto, idsCategorias, galeria, todasLasCategorias] = await Promise.all([
+            const [producto, idsCategorias, galeria, todasLasCategorias, sucursales] = await Promise.all([
                 productoModel.obtenerPorId(id),
-                productoCategoriaModel.obtenerCategoriasPorProducto(id), // Devuelve [ID1, ID2]
+                productoCategoriaModel.obtenerCategoriasPorProducto(id),
                 galeriaProductoModel.getByProducto(id),
-                categoriasModel.obtenerTodas() // Necesario para sacar los nombres
+                categoriasModel.obtenerTodas(),
+                sucursalProductoModel.getByProducto(id) // ← agregar esto
             ]);
 
             if (!producto) throw new Error('No se encontró el producto.');
 
-            // 2. ENRIQUECIMIENTO DE DATOS: Mapear IDs a objetos completos con Nombre
             const categoriasEnriquecidas = idsCategorias.map(idVinculado => {
                 const catInfo = todasLasCategorias.find(c => c.id === idVinculado);
                 return catInfo ? catInfo : { id: idVinculado, nombre: 'Categoría ' + idVinculado };
             });
 
-            // 3. NORMALIZACIÓN DEL PRODUCTO: Asegurar que los campos clave existan
             const productoNormalizado = {
                 ...producto,
                 nombre: producto.nombre || producto.producto_nombre || 'Sin nombre definido',
@@ -122,23 +120,30 @@ export const productoController = {
                 habilitar_whatsapp: producto.habilitar_whatsapp ?? producto.ws_active ?? false
             };
 
+            // Enriquecer sucursales con nombre
+            const todasLasSucursales = await sucursalModel.getAll();
+            const sucursalesEnriquecidas = sucursales.map(sp => {
+                const info = todasLasSucursales.find(s => s.id === sp.id_sucursal);
+                return {
+                    ...sp,
+                    nombre: info ? info.nombre : `Sucursal ${sp.id_sucursal}`
+                };
+            });
+
             Swal.close();
 
             const contenedorPrincipal = document.getElementById('content-area');
-
-            // 4. Renderizado
             contenedorPrincipal.innerHTML = detallesProductoView.render(
                 {
                     producto: productoNormalizado,
                     categorias: categoriasEnriquecidas,
-                    subcategorias: [], // Mapear igual si tienes el modelo de subcategorías
-                    galeria: galeria || []
+                    galeria: galeria || [],
+                    sucursales: sucursalesEnriquecidas  // ← pasar aquí
                 },
                 (p) => this.mostrarFormularioEditar(p.id),
                 () => this.refrescarVista()
             );
 
-            // 5. Inicializar Eventos
             detallesProductoView.initEventListeners(
                 productoNormalizado,
                 (p) => this.mostrarFormularioEditar(p.id),
@@ -146,7 +151,7 @@ export const productoController = {
             );
 
         } catch (error) {
-            console.error("Error al mostrar detalle:", error);
+            console.error('Error al mostrar detalle:', error);
             productoView.notificarError?.('No se pudo cargar la ficha del producto.');
         }
     },
