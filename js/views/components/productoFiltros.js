@@ -43,7 +43,7 @@ export const productoFiltros = {
                 <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10 text-[20px]">storefront</span>
                 <select onchange="productoView.gestionarCambioSucursal(this.value)"
                         class="select-clean w-full bg-white border border-slate-200 rounded-2xl py-2.5 pl-10 pr-8 text-sm outline-none focus:ring-2 focus:ring-blue-500/10 font-bold text-slate-700 cursor-pointer">
-                    <option value="todas" ${estado.sucursalSeleccionada === 'todas' ? 'selected' : ''}>Todas las sedes</option>
+                    <option value="todas" ${estado.sucursalSeleccionada === 'todas' ? 'selected' : ''}>Todas las sucursales</option>
                     ${sucursales.map(s => `
                         <option value="${s.id}" ${estado.sucursalSeleccionada == s.id ? 'selected' : ''}>${s.nombre}</option>
                     `).join('')}
