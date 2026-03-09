@@ -4,7 +4,7 @@ import { importacionController } from './controllers/importacionController.js';
 import { usuarioModel } from './models/usuarioModel.js';
 import { usuarioController } from './controllers/usuarioController.js';
 import { departamentoController } from './controllers/departamentoController.js';
-import { departamentoView }       from './views/departamentoView.js';
+import { direccionController } from './controllers/direccionController.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
 

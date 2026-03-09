@@ -250,6 +250,26 @@
                             </button>
                         </div>
                     </details>
+                    <details class="group px-1">
+                        <summary
+                            class="flex items-center justify-between rounded-lg px-3 py-2.5 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-all cursor-pointer list-none">
+                            <div onclick="event.preventDefault(); direccionController.inicializar()"
+                                class="flex items-center gap-3 flex-1 cursor-pointer">
+                                <span class="material-symbols-outlined text-[20px]">location_on</span>
+                                <p class="text-sm font-medium sidebar-hide">Direcciones</p>
+                            </div>
+                            <span
+                                class="material-symbols-outlined text-[18px] transition-transform group-open:rotate-180 sidebar-hide">expand_more</span>
+                        </summary>
+
+                        <div class="flex flex-col gap-1 mt-1 ml-4 pl-4 border-l-2 border-slate-100 sidebar-hide">
+                            <button onclick="event.stopPropagation(); direccionController.mostrarFormularioCrear()"
+                                class="flex items-center gap-3 rounded-lg px-3 py-1.5 text-slate-400 hover:text-blue-500 transition-all text-[10px] font-bold uppercase text-left">
+                                <span class="material-symbols-outlined text-[16px]">add_location_alt</span>
+                                Nueva Dirección
+                            </button>
+                        </div>
+                    </details>
                 </div>
                 <div class="flex flex-col gap-1">
                     <p class="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 sidebar-hide">
@@ -325,6 +345,7 @@
     <script type="module" src="js/controllers/productoController.js"></script>
     <script type="module" src="js/controllers/carruselController.js"></script>
     <script type="module" src="js/controllers/sucursalController.js"></script>
+    
 </body>
 
 </html>
