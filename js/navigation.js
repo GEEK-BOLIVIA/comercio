@@ -3,6 +3,8 @@ import { productoController } from './controllers/productoController.js';
 import { importacionController } from './controllers/importacionController.js';
 import { usuarioModel } from './models/usuarioModel.js';
 import { usuarioController } from './controllers/usuarioController.js';
+import { departamentoController } from './controllers/departamentoController.js';
+import { departamentoView }       from './views/departamentoView.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
 
